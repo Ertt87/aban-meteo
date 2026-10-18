@@ -1,0 +1,2923 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+    <meta name="theme-color" content="#060911">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Абан Метео WN3">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link id="pwaManifestLink" rel="manifest" href="">
+    <title>WeatherNext 3 • Абан, Красноярский край — Мобильное метеотабло (10 дней)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#111927',
+                            925: '#0a0f1a',
+                            950: '#060911'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        body {
+            background-color: #060911;
+            background-image: 
+                radial-gradient(circle at 12% 10%, rgba(30, 64, 175, 0.20), transparent 38%),
+                radial-gradient(circle at 88% 16%, rgba(14, 116, 144, 0.15), transparent 40%),
+                radial-gradient(circle at 50% 90%, rgba(59, 130, 246, 0.08), transparent 50%);
+            color: #f1f5f9;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+            padding-top: var(--safe-top);
+            padding-bottom: calc(88px + var(--safe-bottom));
+        }
+        @media (min-width: 768px) {
+            body {
+                padding-bottom: 48px;
+            }
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.80);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.48);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .glass-card:hover {
+            border-color: rgba(56, 189, 248, 0.45);
+        }
+        .day-card-active {
+            background: linear-gradient(160deg, rgba(14, 116, 144, 0.48) 0%, rgba(30, 58, 138, 0.52) 100%) !important;
+            border-color: rgba(56, 189, 248, 0.92) !important;
+            box-shadow: 0 8px 24px -4px rgba(14, 165, 233, 0.28), inset 0 1px 0 0 rgba(255, 255, 255, 0.18);
+        }
+        .day-card-dimmed {
+            opacity: 0.30;
+            filter: grayscale(55%);
+        }
+        /* Touch-friendly horizontal scroll containers */
+        .touch-scroll-row {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            scrollbar-width: thin;
+        }
+        .touch-scroll-row::-webkit-scrollbar {
+            height: 4px;
+        }
+        .touch-scroll-row::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: 9999px;
+        }
+        .touch-scroll-row::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.4);
+            border-radius: 9999px;
+        }
+        /* Enlarged Mobile-First SVG Chart Wrapper */
+        .chart-scroll-wrap {
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            scrollbar-width: thin;
+        }
+        .chart-scroll-wrap::-webkit-scrollbar {
+            height: 6px;
+        }
+        .chart-scroll-wrap::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 9999px;
+        }
+        .chart-scroll-wrap::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.55);
+            border-radius: 9999px;
+        }
+        .chart-svg-mobile {
+            min-width: 700px;
+            width: 100%;
+            height: 275px;
+            display: block;
+            user-select: none;
+        }
+        .diurnal-svg-mobile {
+            min-width: 680px;
+            width: 100%;
+            height: 235px;
+            display: block;
+            user-select: none;
+        }
+        .grid-bg {
+            background-size: 24px 24px;
+            background-image: 
+                linear-gradient(to right, rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
+        }
+        .preset-btn-active {
+            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%) !important;
+            color: #060911 !important;
+            font-weight: 700 !important;
+            border-color: rgba(125, 211, 252, 0.9) !important;
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.32);
+        }
+        .source-btn-active {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.28) 0%, rgba(37, 99, 235, 0.36) 100%) !important;
+            color: #f8fafc !important;
+            border-color: #38bdf8 !important;
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.24);
+        }
+        .window-btn-active {
+            background: rgba(56, 189, 248, 0.20) !important;
+            color: #38bdf8 !important;
+            border-color: rgba(56, 189, 248, 0.75) !important;
+            font-weight: 700 !important;
+        }
+        .touch-target {
+            min-height: 42px;
+        }
+        select.meteo-select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2338bdf8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-position: right 0.65rem center;
+            background-repeat: no-repeat;
+            background-size: 1.1rem 1.1rem;
+            padding-right: 2.2rem;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        @keyframes spin-fast {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-fast {
+            animation: spin-fast 0.8s linear infinite;
+        }
+        /* Mobile Bottom Bar Safe Area */
+        .mobile-thumb-bar {
+            padding-bottom: max(6px, var(--safe-bottom));
+        }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased selection:bg-sky-500 selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed top-16 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm"></div>
+
+    <!-- Settings, API Key, Units & Cache Modal -->
+    <div id="settingsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md">
+        <div class="glass-panel rounded-2xl max-w-2xl w-full p-4 sm:p-6 border border-sky-500/40 shadow-2xl max-h-[90vh] overflow-y-auto space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/35 flex items-center justify-center text-sky-400 flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-bold text-white">Настройки API, Единиц и Офлайн-кэша</h3>
+                        <p class="text-xs text-slate-400">Коннектор WeatherNext 3, Open-Meteo и память смартфона</p>
+                    </div>
+                </div>
+                <button onclick="closeSettingsModal()" class="touch-target px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center">
+                    ✕
+                </button>
+            </div>
+
+            <!-- 1. Google Weather API Key Config -->
+            <div class="p-4 rounded-xl bg-slate-900/85 border border-slate-800 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span class="text-xs font-mono uppercase tracking-wider text-sky-400 font-bold">
+                        🛰️ 1. Ключ Google Maps Platform Weather API (WeatherNext 3)
+                    </span>
+                    <span id="modalKeyStatusBadge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">Ключ не задан</span>
+                </div>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Загружает 10-дневный (<code>days=10&amp;pageSize=10</code>) и почасовой прогноз напрямую с серверов <code>weather.googleapis.com/v1</code> (модель <strong>Google DeepMind WeatherNext 3</strong>). Ключ хранится в <code>localStorage</code> (<code>aban_wn3_api_key</code>).
+                </p>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input id="googleApiKeyInput" type="password" placeholder="Вставьте API-ключ (AIzaSy...)" class="touch-target flex-1 bg-slate-950 text-white text-sm font-mono rounded-xl px-3.5 py-2 border border-slate-700 focus:border-sky-400 focus:outline-none" />
+                    <button onclick="saveGoogleApiKey()" class="touch-target px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs transition">
+                        Сохранить и обновить
+                    </button>
+                    <button onclick="testGoogleApiKey()" class="touch-target px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 text-xs font-mono transition">
+                        Проверить 10-дн. ключ
+                    </button>
+                </div>
+                <div id="apiKeyTestResult" class="text-xs font-mono text-slate-400">
+                    Совет для VPS: вы также можете вписать ключ прямо в переменную <code>DEFAULT_VPS_API_KEY</code> внутри кода.
+                </div>
+            </div>
+
+            <!-- 2. Unit System Switcher -->
+            <div class="p-4 rounded-xl bg-slate-900/85 border border-slate-800 space-y-2.5">
+                <div class="text-xs font-mono uppercase tracking-wider text-indigo-300 font-bold">
+                    📏 2. Система единиц измерения
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setUnitSystem('metric')" id="modalUnitMetric" class="touch-target px-3 py-2 rounded-xl text-xs font-mono font-bold transition bg-sky-500 text-slate-950">
+                        °C, м/с, мм
+                    </button>
+                    <button onclick="setUnitSystem('imperial')" id="modalUnitImperial" class="touch-target px-3 py-2 rounded-xl text-xs font-mono font-semibold transition bg-slate-950 text-slate-300 border border-slate-800">
+                        °F, mph
+                    </button>
+                    <button onclick="setUnitSystem('dual')" id="modalUnitDual" class="touch-target px-3 py-2 rounded-xl text-xs font-mono font-semibold transition bg-slate-950 text-slate-300 border border-slate-800">
+                        Двойной °C / °F
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. Open-Meteo Model Preference -->
+            <div class="p-4 rounded-xl bg-slate-900/85 border border-slate-800 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-mono uppercase tracking-wider text-emerald-400 font-bold">
+                        🌍 3. Модель резервного и почвенного канала (Open-Meteo)
+                    </span>
+                    <span class="text-[11px] font-mono text-emerald-300">Без ключей • Защита от 400</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button onclick="setOpenMeteoModel('best_match')" id="omModelBtn-best_match" class="touch-target px-3 py-2 rounded-xl text-xs font-mono border text-left transition bg-sky-500/20 border-sky-400 text-white">
+                        <div class="font-bold">Авто-Ансамбль</div>
+                        <div class="text-[10px] text-slate-300">Best Match + Почва 0–10 см</div>
+                    </button>
+                    <button onclick="setOpenMeteoModel('ecmwf_ifs025')" id="omModelBtn-ecmwf_ifs025" class="touch-target px-3 py-2 rounded-xl text-xs font-mono border text-left transition bg-slate-950 border-slate-800 text-slate-300">
+                        <div class="font-bold">ECMWF IFS 0.25°</div>
+                        <div class="text-[10px] text-slate-400">Европейский центр (Сибирь)</div>
+                    </button>
+                    <button onclick="setOpenMeteoModel('gfs_seamless')" id="omModelBtn-gfs_seamless" class="touch-target px-3 py-2 rounded-xl text-xs font-mono border text-left transition bg-slate-950 border-slate-800 text-slate-300">
+                        <div class="font-bold">NOAA GFS Seamless</div>
+                        <div class="text-[10px] text-slate-400">Глобальная модель + Почва</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4. Offline Cache Manager + JSON Export/Import -->
+            <div class="p-4 rounded-xl bg-slate-900/85 border border-slate-800 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span class="text-xs font-mono uppercase tracking-wider text-amber-400 font-bold">
+                        💾 4. Автономный офлайн-кэш смартфона (localStorage)
+                    </span>
+                    <span id="modalCacheSizeBadge" class="text-[11px] font-mono text-amber-300">Кэш: проверка...</span>
+                </div>
+                <div id="modalCacheMetaInfo" class="text-xs font-mono text-slate-300 bg-slate-950/90 p-2.5 rounded-lg border border-slate-800">
+                    Последний сохраненный слепок: проверка...
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button onclick="saveCurrentToCache(true)" class="touch-target px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-xs font-mono transition">
+                        💾 В память
+                    </button>
+                    <button onclick="exportCacheJson()" class="touch-target px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-mono transition">
+                        ⬇️ Экспорт JSON
+                    </button>
+                    <label class="touch-target px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 text-xs font-mono transition flex items-center justify-center cursor-pointer text-center">
+                        <span>⬆️ Импорт JSON</span>
+                        <input type="file" accept=".json,application/json" onchange="importCacheJson(event)" class="hidden" />
+                    </label>
+                    <button onclick="clearWeatherCache()" class="touch-target px-3 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 text-xs font-mono transition">
+                        🗑️ Очистить
+                    </button>
+                </div>
+            </div>
+
+            <!-- 5. Mobile Home Screen PWA Guide -->
+            <div class="p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 space-y-2">
+                <div class="text-xs font-mono uppercase tracking-wider text-indigo-300 font-bold">
+                    📱 5. Установка иконки на главный экран телефона (PWA)
+                </div>
+                <ul class="text-xs text-slate-300 space-y-1 list-disc list-inside leading-relaxed">
+                    <li><strong>Android (Chrome):</strong> откройте меню <code>⋮</code> и нажмите <strong>«Добавить на главный экран»</strong> / «Установить приложение».</li>
+                    <li><strong>iPhone (Safari):</strong> нажмите <strong>«Поделиться»</strong> внизу и выберите <strong>«На экран „Домой“»</strong>.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Compact Sticky Header -->
+    <header class="border-b border-slate-800/85 bg-slate-950/95 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-2">
+            <!-- Left: Station Name & Live Status Pill -->
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/35 flex items-center justify-center text-sky-400 flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-sm sm:text-base font-extrabold text-white truncate">п. Абан • Метео WN3</h1>
+                        <span id="liveStatusPill" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/35 flex-shrink-0">
+                            <span id="liveStatusDot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                            <span id="liveStatusText">LIVE</span>
+                        </span>
+                    </div>
+                    <div class="text-[11px] font-mono text-slate-400 truncate flex items-center gap-1.5">
+                        <span>56.68°N, 96.07°E</span>
+                        <span>•</span>
+                        <span id="syncTimestampText" class="text-slate-300 truncate">Синхр.: 18 окт 2026</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Quick Action Touch Buttons -->
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+                <button id="refreshDataBtn" onclick="refreshWeatherData(true)" class="touch-target px-3 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/35 transition flex items-center gap-1.5 text-xs font-mono font-bold" title="Обновить прогноз">
+                    <svg id="refreshSpinnerIcon" class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    <span class="hidden sm:inline">Обновить</span>
+                </button>
+
+                <!-- Desktop Unit Switcher -->
+                <div class="hidden md:inline-flex rounded-xl p-0.5 bg-slate-900 border border-slate-700/80">
+                    <button id="btnUnitMetric" onclick="setUnitSystem('metric')" class="px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition bg-sky-500 text-slate-950">°C</button>
+                    <button id="btnUnitImperial" onclick="setUnitSystem('imperial')" class="px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition text-slate-400 hover:text-white">°F</button>
+                    <button id="btnUnitDual" onclick="setUnitSystem('dual')" class="px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition text-slate-400 hover:text-white">°C/°F</button>
+                </div>
+
+                <button onclick="copyTelemetrySummary()" class="touch-target px-2.5 sm:px-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition flex items-center gap-1.5 text-xs font-medium" title="Скопировать текстовую сводку">
+                    <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    <span class="hidden lg:inline">Сводка</span>
+                </button>
+
+                <button onclick="openSettingsModal()" class="touch-target px-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-100 border border-slate-700/80 transition flex items-center gap-1.5 text-xs font-mono font-semibold">
+                    <span>⚙️</span>
+                    <span class="hidden sm:inline">API и Кэш</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-5 space-y-4 sm:space-y-6">
+
+        <!-- SECTION 1 (FIRST SCREEN): Current Weather & Nearest Hour Telemetry -->
+        <section id="sec-now" class="scroll-mt-16 grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-5">
+            <!-- Current Weather Card -->
+            <div class="lg:col-span-7 glass-panel rounded-2xl p-4 sm:p-5 relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-44 h-44 bg-sky-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800/80">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                        <h2 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-200">Сейчас в п. Абан</h2>
+                    </div>
+                    <span id="currentObsTimeBadge" class="text-[11px] font-mono text-sky-300 bg-sky-950/60 border border-sky-800/60 px-2.5 py-0.5 rounded-md">
+                        Вс, 18 окт 2026 • UTC+7
+                    </span>
+                </div>
+
+                <div class="mt-3.5 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+                    <!-- Main Temp & Weather Icon -->
+                    <div class="sm:col-span-6 flex items-center gap-3.5">
+                        <div id="currentWeatherIcon" class="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 flex items-center justify-center rounded-2xl bg-slate-800/75 border border-slate-700/60 shadow-inner"></div>
+                        <div>
+                            <div class="flex items-baseline gap-2">
+                                <span id="currentTempDisplay" class="text-4xl sm:text-5xl font-extrabold tracking-tight font-mono text-white">+4.8°C</span>
+                                <span id="currentTempSecondary" class="text-sm font-mono text-slate-400">(41°F)</span>
+                            </div>
+                            <p id="currentCondText" class="text-sm sm:text-base font-bold text-slate-100 mt-0.5">Ясно (Антициклон)</p>
+                            <p class="text-xs text-slate-400 mt-0.5 font-mono">
+                                Ощущается: <strong id="currentFeelsDisplay" class="text-sky-300">+1.9°C (35°F)</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 2x2 Telemetry Grid -->
+                    <div class="sm:col-span-6 grid grid-cols-2 gap-2">
+                        <div class="p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-slate-800/90">
+                            <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                                <span>Ветер</span>
+                                <span id="currentWindDirTag" class="font-mono text-sky-400 font-bold">135° ЮВ</span>
+                            </div>
+                            <div id="currentWindDisplay" class="text-sm sm:text-base font-extrabold font-mono text-white mt-0.5">3.1 м/с</div>
+                            <div id="currentGustSub" class="text-[11px] font-mono text-amber-300">Порывы 6.0 м/с</div>
+                        </div>
+
+                        <div class="p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-slate-800/90">
+                            <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                                <span>Осадки</span>
+                                <span id="currentPrecipPhaseTag" class="px-1.5 py-0.2 rounded text-[10px] font-mono bg-cyan-500/20 text-cyan-300">Без осадков</span>
+                            </div>
+                            <div id="currentPrecipProbDisplay" class="text-sm sm:text-base font-extrabold font-mono text-cyan-300 mt-0.5">5% • 0.0 мм</div>
+                            <div class="text-[11px] font-mono text-slate-400">Сухое окно</div>
+                        </div>
+
+                        <div class="p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-slate-800/90">
+                            <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                                <span>Влажность</span>
+                                <span id="currentSoilTempMini" class="font-mono text-[10px] text-amber-300 font-semibold">Почва: +0.9°C</span>
+                            </div>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span id="currentHumidityDisplay" class="text-sm sm:text-base font-extrabold font-mono text-white">68%</span>
+                                <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="currentHumidityBar" class="h-full bg-sky-400 rounded-full" style="width: 68%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-slate-800/90">
+                            <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                                <span>Давление</span>
+                                <span id="currentUvTag" class="font-mono text-[10px] text-emerald-400">УФ: 1</span>
+                            </div>
+                            <div id="currentPressureDisplay" class="text-sm sm:text-base font-extrabold font-mono text-emerald-400 mt-0.5">753 мм</div>
+                            <div id="currentPressureHpaSub" class="text-[11px] font-mono text-slate-400">1004 гПа</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nearest Control Hour (10:00 / Next Hour) + Today Amplitude -->
+            <div class="lg:col-span-5 glass-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden">
+                <div>
+                    <div class="flex items-center justify-between gap-2 pb-3 border-b border-slate-800/80">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <h2 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-200">Контрольный репер • 10:00</h2>
+                        </div>
+                        <span id="hourly10Badge" class="px-2 py-0.5 rounded text-[11px] font-mono bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                            Малооблачно
+                        </span>
+                    </div>
+
+                    <div class="mt-3 flex items-center justify-between gap-3 bg-slate-900/75 p-3 rounded-xl border border-slate-800/90">
+                        <div class="flex items-center gap-3">
+                            <div id="hourly10Icon" class="w-12 h-12 flex items-center justify-center rounded-xl bg-slate-800/90 border border-slate-700/60 flex-shrink-0"></div>
+                            <div>
+                                <div class="flex items-baseline gap-2">
+                                    <span id="hourly10Temp" class="text-2xl font-extrabold font-mono text-white">+3.2°C</span>
+                                    <span id="hourly10Feels" class="text-xs font-mono text-slate-400">Ощущ. +0.1°C</span>
+                                </div>
+                                <div id="hourly10CondDesc" class="text-xs text-cyan-300 font-medium mt-0.5">Солнечно, без осадков</div>
+                            </div>
+                        </div>
+                        <div class="text-right font-mono text-xs space-y-0.5 flex-shrink-0">
+                            <div class="text-slate-300">Осадки: <strong id="hourly10Precip" class="text-cyan-300">5%</strong></div>
+                            <div class="text-slate-300">Ветер: <strong id="hourly10Wind" class="text-white">3.1 м/с ЮВ</strong></div>
+                            <div class="text-slate-400">Почва: <strong id="hourly10Soil" class="text-amber-300">+0.9°C</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Today Extremes & Active Source Info -->
+                <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span id="todayExtremesLabel" class="text-slate-400 font-medium">Сегодня:</span>
+                    <div class="flex items-center gap-2.5 font-mono">
+                        <span class="text-cyan-300">Min: <strong id="todayMinBadge">-3.9°C</strong></span>
+                        <div class="w-12 h-1.5 rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-amber-300"></div>
+                        <span class="text-amber-300">Max: <strong id="todayMaxBadge">+5.6°C</strong></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 1.5: Smart Collapsible Drawer «🎚️ Период, источник и фильтры» -->
+        <!-- Collapsed by default on mobile (<768px) so the 10-day forecast strip is immediately visible on the first screen -->
+        <section id="sec-filters" class="scroll-mt-16 glass-panel rounded-2xl border border-sky-500/35 shadow-lg overflow-hidden">
+            <!-- Compact Trigger Bar (Always Visible) -->
+            <div onclick="toggleControlsDrawer()" class="p-3.5 sm:px-5 sm:py-4 flex flex-wrap items-center justify-between gap-2.5 cursor-pointer hover:bg-slate-900/60 transition select-none">
+                <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div class="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/35 flex items-center justify-center text-sky-400 flex-shrink-0">
+                        <span class="text-base">🎚️</span>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm sm:text-base font-bold text-white">Период, источник и фильтры</span>
+                            <span id="drawerChipSource" class="px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                                ⚡ Гибрид
+                            </span>
+                            <span id="drawerChipPeriod" class="px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-slate-800 text-slate-200 border border-slate-700">
+                                10 дн.
+                            </span>
+                            <span id="drawerChipWindow" class="px-2 py-0.5 rounded-md text-[11px] font-mono text-amber-300 bg-amber-500/10 border border-amber-500/25">
+                                00–24ч
+                            </span>
+                            <span id="drawerChipExtremes" class="hidden sm:inline-block px-2 py-0.5 rounded-md text-[11px] font-mono text-cyan-300 bg-slate-900 border border-slate-800">
+                                -6.1°...+7.8°C
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" id="drawerToggleBtn" class="touch-target px-3.5 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-mono font-bold flex items-center gap-1.5 transition flex-shrink-0">
+                    <span id="drawerToggleBtnText">Настроить</span>
+                    <svg id="drawerToggleChevron" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Collapsible Body (Hidden by default on mobile <768px, visible on desktop >=960px) -->
+            <div id="controlsDrawerBody" class="hidden lg:block border-t border-slate-800/80 p-4 sm:p-5 space-y-4 bg-slate-950/40">
+                <!-- Row A: Manual Data Source Selector -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+                        <span class="uppercase tracking-wider text-slate-300 font-bold">1. Источник метеоданных (ручной выбор):</span>
+                        <span id="activeSourceBadge" class="text-sky-300 truncate">Авто-Гибрид</span>
+                    </div>
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2" role="group">
+                        <button onclick="setDataSourceMode('hybrid')" id="srcBtn-hybrid" class="touch-target source-btn-active px-3 py-2 rounded-xl text-xs font-mono bg-slate-900 text-slate-200 border border-slate-800 transition text-left flex items-center justify-between">
+                            <span class="font-bold">⚡ Авто-Гибрид</span>
+                            <span class="text-[10px] opacity-75">WN3 + Почва</span>
+                        </button>
+                        <button onclick="setDataSourceMode('google_wn3')" id="srcBtn-google_wn3" class="touch-target px-3 py-2 rounded-xl text-xs font-mono bg-slate-900 text-slate-200 border border-slate-800 transition text-left flex items-center justify-between">
+                            <span class="font-bold">🛰️ WeatherNext 3</span>
+                            <span id="wn3ModeSubTag" class="text-[10px] opacity-75">API / Эталон</span>
+                        </button>
+                        <button onclick="setDataSourceMode('open_meteo')" id="srcBtn-open_meteo" class="touch-target px-3 py-2 rounded-xl text-xs font-mono bg-slate-900 text-slate-200 border border-slate-800 transition text-left flex items-center justify-between">
+                            <span class="font-bold">🌍 Open-Meteo</span>
+                            <span class="text-[10px] opacity-75">ECMWF + Почва</span>
+                        </button>
+                        <button onclick="setDataSourceMode('offline_cache')" id="srcBtn-offline_cache" class="touch-target px-3 py-2 rounded-xl text-xs font-mono bg-slate-900 text-slate-200 border border-slate-800 transition text-left flex items-center justify-between">
+                            <span class="font-bold">💾 Офлайн-кэш</span>
+                            <span class="text-[10px] opacity-75">Память</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Row B: Quick Period Presets in Single Scrollable Row -->
+                <div class="space-y-2 pt-2 border-t border-slate-800/70">
+                    <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+                        <span class="uppercase tracking-wider text-slate-300 font-bold">2. Горизонт прогноза (быстрые пресеты):</span>
+                        <span id="activePresetBadge" class="text-sky-300 font-bold">10 дней</span>
+                    </div>
+                    <div class="touch-scroll-row gap-2 pb-1" role="group">
+                        <button onclick="applyPeriodPreset('3d')" id="presetBtn-3d" class="touch-target flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-900 text-slate-200 border border-slate-700/80 transition">
+                            3 дня
+                        </button>
+                        <button onclick="applyPeriodPreset('5d')" id="presetBtn-5d" class="touch-target flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-900 text-slate-200 border border-slate-700/80 transition">
+                            5 дней
+                        </button>
+                        <button onclick="applyPeriodPreset('7d')" id="presetBtn-7d" class="touch-target flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-900 text-slate-200 border border-slate-700/80 transition">
+                            7 дней
+                        </button>
+                        <button onclick="applyPeriodPreset('10d')" id="presetBtn-10d" class="touch-target flex-shrink-0 preset-btn-active px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-900 text-slate-200 border border-slate-700/80 transition">
+                            10 дней (базовый)
+                        </button>
+                        <button onclick="applyPeriodPreset('weekend')" id="presetBtn-weekend" class="touch-target flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-900 text-slate-200 border border-slate-700/80 transition">
+                            Выходные
+                        </button>
+                        <button onclick="applyPeriodPreset('all11')" id="presetBtn-all11" class="touch-target flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-900 text-amber-300 border border-amber-500/35 transition">
+                            Все + Архив (11 дн.)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Row C: Custom Date Range ("С даты" - "По дату") & Time-of-Day Window -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-2 border-t border-slate-800/70">
+                    <!-- Custom Date Range -->
+                    <div class="lg:col-span-6 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-bold uppercase tracking-wider text-slate-300">Произвольные даты («С» — «По»)</span>
+                            <span id="rangeProtectionHint" class="text-[11px] font-mono text-slate-400">Защита от инверсии</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div>
+                                <label for="selectStartDate" class="block text-[11px] font-mono text-slate-400 mb-1">С даты:</label>
+                                <select id="selectStartDate" onchange="handleCustomDateChange('start')" class="touch-target meteo-select w-full bg-slate-950 text-white text-xs font-mono rounded-xl px-3 py-2 border border-slate-700 focus:border-sky-400 focus:outline-none"></select>
+                            </div>
+                            <div>
+                                <label for="selectEndDate" class="block text-[11px] font-mono text-slate-400 mb-1">По дату:</label>
+                                <select id="selectEndDate" onchange="handleCustomDateChange('end')" class="touch-target meteo-select w-full bg-slate-950 text-white text-xs font-mono rounded-xl px-3 py-2 border border-slate-700 focus:border-sky-400 focus:outline-none"></select>
+                            </div>
+                        </div>
+                        <!-- Interactive Mini Date Scale -->
+                        <div id="miniTimelineTrack" class="grid grid-cols-11 gap-1 pt-1"></div>
+                    </div>
+
+                    <!-- Diurnal Time-of-Day Window -->
+                    <div class="lg:col-span-6 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between space-y-3">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-bold uppercase tracking-wider text-slate-300">Фильтр времени суток</span>
+                            <span id="activeTimeWindowBadge" class="text-[11px] font-mono text-sky-300">00:00–24:00</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="setTimeOfDayWindow('full')" id="windowBtn-full" class="touch-target window-btn-active px-3 py-2 rounded-xl text-xs font-mono bg-slate-950 text-slate-300 border border-slate-800 transition flex items-center justify-between">
+                                <span>24 часа</span>
+                                <span class="text-[10px] opacity-80">00–24ч</span>
+                            </button>
+                            <button onclick="setTimeOfDayWindow('day_shift')" id="windowBtn-day_shift" class="touch-target px-3 py-2 rounded-xl text-xs font-mono bg-slate-950 text-slate-300 border border-slate-800 transition flex items-center justify-between">
+                                <span>Дневная</span>
+                                <span class="text-[10px] opacity-80">08–20ч</span>
+                            </button>
+                            <button onclick="setTimeOfDayWindow('daylight')" id="windowBtn-daylight" class="touch-target px-3 py-2 rounded-xl text-xs font-mono bg-slate-950 text-slate-300 border border-slate-800 transition flex items-center justify-between">
+                                <span>☀️ Световой</span>
+                                <span class="text-[10px] opacity-80">07–18ч</span>
+                            </button>
+                            <button onclick="setTimeOfDayWindow('night')" id="windowBtn-night" class="touch-target px-3 py-2 rounded-xl text-xs font-mono bg-slate-950 text-slate-300 border border-slate-800 transition flex items-center justify-between">
+                                <span>🌙 Ночь</span>
+                                <span class="text-[10px] opacity-80">20–08ч</span>
+                            </button>
+                        </div>
+                        <div class="text-[11px] font-mono text-slate-400 flex items-center justify-between">
+                            <span>Синхронизирует почасовой график</span>
+                            <span id="windowHoursCount" class="text-slate-300">12/12 срезов</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row D: Period Summary KPI Grid (2x2 on mobile, 5 cards on desktop) -->
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-2.5 pt-2 border-t border-slate-800/70">
+                    <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+                        <div class="text-[10px] font-mono text-slate-400 uppercase">Период</div>
+                        <div id="periodSumDaysCount" class="text-base sm:text-lg font-extrabold font-mono text-white mt-0.5">10 суток</div>
+                        <div id="periodSumDateSpan" class="text-[11px] font-mono text-sky-300 truncate">18 окт – 27 окт</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+                        <div class="text-[10px] font-mono text-slate-400 uppercase">Min / Max периода</div>
+                        <div class="flex items-baseline gap-1.5 mt-0.5 font-mono">
+                            <span id="periodSumAbsMax" class="text-base sm:text-lg font-extrabold text-amber-300">+7.8°C</span>
+                            <span class="text-slate-600">/</span>
+                            <span id="periodSumAbsMin" class="text-base sm:text-lg font-extrabold text-cyan-300">-6.1°C</span>
+                        </div>
+                        <div id="periodSumAbsDates" class="text-[10px] font-mono text-slate-400 truncate">Пики периода</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+                        <div class="text-[10px] font-mono text-slate-400 uppercase">Средняя День/Ночь</div>
+                        <div class="flex items-baseline gap-1.5 mt-0.5 font-mono">
+                            <span id="periodSumAvgDay" class="text-base sm:text-lg font-extrabold text-white">+3.4°C</span>
+                            <span class="text-slate-600">/</span>
+                            <span id="periodSumAvgNight" class="text-sm font-bold text-indigo-300">-1.3°C</span>
+                        </div>
+                        <div id="periodSumWindowAvg" class="text-[10px] font-mono text-sky-300 truncate">В окне: +1.1°C</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+                        <div class="text-[10px] font-mono text-slate-400 uppercase">Осадки и сухие дни</div>
+                        <div class="flex items-baseline gap-1.5 mt-0.5 font-mono">
+                            <span id="periodSumMaxPrecip" class="text-base sm:text-lg font-extrabold text-cyan-300">Пик 35%</span>
+                            <span id="periodSumAvgPrecip" class="text-xs text-slate-400">(4.2 мм)</span>
+                        </div>
+                        <div id="periodSumDryDays" class="text-[10px] font-mono text-emerald-300 truncate">Сухих: 6 из 10</div>
+                    </div>
+                    <div class="col-span-2 lg:col-span-1 p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+                        <div class="text-[10px] font-mono text-slate-400 uppercase">Пиковый ветер</div>
+                        <div id="periodSumMaxWind" class="text-base sm:text-lg font-extrabold font-mono text-white mt-0.5">6.7 м/с (пор. 11.8)</div>
+                        <div id="periodSumWindMeta" class="text-[10px] font-mono text-amber-300 truncate">ЮЗ поток</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: 10-Day Interactive Forecast Strip (Horizontal Swipe on Mobile) -->
+        <section id="sec-days" class="scroll-mt-16 glass-panel rounded-2xl p-4 sm:p-5 space-y-3.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 id="stripSectionTitle" class="text-base sm:text-lg font-bold text-white">Прогноз на 10 дней</h2>
+                        <p class="text-xs text-slate-400">Нажмите на карточку дня для почасового разбора</p>
+                    </div>
+                    <span class="sm:hidden text-[11px] font-mono text-sky-300 bg-sky-950/70 px-2 py-1 rounded-lg border border-sky-500/30">
+                        ↔ Свайп
+                    </span>
+                </div>
+
+                <!-- Risk Filter Chips in a Single Touch-Scroll Row -->
+                <div class="touch-scroll-row gap-1.5 pb-1">
+                    <button onclick="setDayFilter('all')" id="filterBtn-all" class="touch-target flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-sky-500 text-slate-950">
+                        Все дни (10)
+                    </button>
+                    <button onclick="setDayFilter('frost')" id="filterBtn-frost" class="touch-target flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition bg-slate-800/90 text-slate-200 border border-slate-700/80 flex items-center gap-1.5">
+                        <span>❄️</span>
+                        <span id="filterLabel-frost">Заморозки (&lt;0°C)</span>
+                    </button>
+                    <button onclick="setDayFilter('precip')" id="filterBtn-precip" class="touch-target flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition bg-slate-800/90 text-slate-200 border border-slate-700/80 flex items-center gap-1.5">
+                        <span>🌧️</span>
+                        <span id="filterLabel-precip">Осадки (≥15%)</span>
+                    </button>
+                    <button onclick="setDayFilter('clear')" id="filterBtn-clear" class="touch-target flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition bg-slate-800/90 text-slate-200 border border-slate-700/80 flex items-center gap-1.5">
+                        <span>☀️</span>
+                        <span id="filterLabel-clear">Сухие окна</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Forecast Cards Container: Horizontal Touch Carousel on Mobile, Responsive Grid on Desktop -->
+            <div id="forecastStripContainer" class="flex lg:grid lg:grid-cols-10 gap-2.5 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 snap-x snap-mandatory touch-scroll-row"></div>
+        </section>
+
+        <!-- SECTION 3: Detailed Day & 24-Hour Inspector Panel -->
+        <section id="sec-hourly" class="scroll-mt-16 glass-panel rounded-2xl p-4 sm:p-6 border border-sky-500/30 space-y-5">
+            <!-- Header & Day Stepper -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-800/80">
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <span id="inspectorDateBadge" class="px-3 py-1 rounded-xl bg-sky-500/20 border border-sky-400/40 text-sky-300 font-mono text-sm font-bold">
+                        Вс, 18 окт (Сегодня)
+                    </span>
+                    <h3 id="inspectorTitle" class="text-base sm:text-xl font-bold text-white">
+                        Детальный инспектор суток
+                    </h3>
+                    <span id="inspectorRiskBadges" class="flex flex-wrap gap-1.5"></span>
+                </div>
+                <div class="flex items-center justify-between sm:justify-end gap-2 text-xs font-mono text-slate-300">
+                    <button onclick="navigateDay(-1)" class="touch-target px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition flex items-center gap-1">
+                        <span>◀</span> <span class="sm:hidden">Пред.</span>
+                    </button>
+                    <span id="inspectorIndexCounter" class="px-2 font-bold">День 1 из 10</span>
+                    <button onclick="navigateDay(1)" class="touch-target px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition flex items-center gap-1">
+                        <span class="sm:hidden">След.</span> <span>▶</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ENLARGED 24-Hour Diurnal Chart First on Mobile for Immediate Clarity -->
+            <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-900/75 border border-slate-800 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm sm:text-base font-bold text-white">🕒 Почасовой ход (00:00 – 22:00)</span>
+                        <span id="inspectorWindowLabel" class="font-mono text-xs px-2.5 py-0.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                            Окно: 00:00–24:00
+                        </span>
+                    </div>
+                    <span class="md:hidden text-[11px] font-mono text-amber-300 bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/25">
+                        ↔ Листайте график пальцем · Нажмите на час
+                    </span>
+                </div>
+
+                <!-- Interactive Selected Hour Telemetry Bar (Updates on Tap/Click on any Hour Point) -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-950/90 p-3 rounded-xl border border-sky-500/25 text-xs font-mono">
+                    <div>
+                        <span id="selectedHourTitle" class="text-slate-400 block text-[11px]">Выбранный репер (14:00):</span>
+                        <strong id="selectedHourTemp" class="text-sm sm:text-base text-amber-300">+5.6°C (Ощущ. +2.4°C)</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[11px]">Ср. T° активного окна:</span>
+                        <strong id="diurnalWindowAvgTemp" class="text-sm sm:text-base text-sky-300">+1.1°C</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[11px]">Ветер в выбранный час:</span>
+                        <strong id="diurnalWindowAvgWind" class="text-sm sm:text-base text-white">3.4 м/с</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[11px]">Осадки в окне:</span>
+                        <strong id="diurnalWindowPrecip" class="text-sm sm:text-base text-cyan-300">5% (сухо)</strong>
+                    </div>
+                </div>
+
+                <!-- Horizontally Scrollable Enlarged SVG Container -->
+                <div class="chart-scroll-wrap rounded-xl bg-slate-950/75 border border-slate-800/90 p-2 grid-bg">
+                    <div id="diurnalChartContainer"></div>
+                </div>
+
+                <div id="inspectorFrostAdvisory" class="p-3 rounded-xl bg-cyan-950/45 border border-cyan-500/30 text-xs sm:text-sm text-cyan-200 flex items-center gap-2.5">
+                    <span class="text-base">⚠️</span>
+                    <span id="inspectorAdvisoryText">Переход через 0°C в ночные часы: риск утренней гололедицы на дорогах.</span>
+                </div>
+            </div>
+
+            <!-- Day vs Night Comparison + Wind Vector Compass -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <!-- Day & Night Cards -->
+                <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <!-- Daytime Card -->
+                    <div id="inspectorDayCardBox" class="p-4 rounded-xl bg-gradient-to-b from-slate-800/75 to-slate-900/85 border border-slate-700/70 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between text-xs text-amber-300 font-mono uppercase tracking-wider font-bold">
+                                <span>☀️ Дневной режим (08–20ч)</span>
+                                <span>Max T°</span>
+                            </div>
+                            <div class="mt-3 flex items-center gap-3.5">
+                                <div id="inspectorDayIcon" class="w-14 h-14 flex items-center justify-center rounded-xl bg-slate-950/60 border border-slate-800"></div>
+                                <div>
+                                    <div id="inspectorDayTemp" class="text-3xl font-extrabold font-mono text-white">+5.6°C</div>
+                                    <div id="inspectorDayTempSub" class="text-xs font-mono text-slate-400">42°F</div>
+                                </div>
+                            </div>
+                            <p id="inspectorDayCond" class="mt-2.5 text-sm font-bold text-slate-100">Ясно</p>
+                            <p id="inspectorDayCondEn" class="text-xs text-slate-400">Sunny</p>
+                        </div>
+                        <div class="mt-3.5 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
+                            <span class="text-slate-400">Осадки днем:</span>
+                            <span id="inspectorDayPrecip" class="font-bold text-cyan-300">0% • 0.0 мм</span>
+                        </div>
+                    </div>
+
+                    <!-- Nighttime Card -->
+                    <div id="inspectorNightCardBox" class="p-4 rounded-xl bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800/80 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between text-xs text-indigo-300 font-mono uppercase tracking-wider font-bold">
+                                <span>🌙 Ночной режим (20–08ч)</span>
+                                <span>Min T°</span>
+                            </div>
+                            <div class="mt-3 flex items-center gap-3.5">
+                                <div id="inspectorNightIcon" class="w-14 h-14 flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800"></div>
+                                <div>
+                                    <div id="inspectorNightTemp" class="text-3xl font-extrabold font-mono text-cyan-200">-3.9°C</div>
+                                    <div id="inspectorNightTempSub" class="text-xs font-mono text-slate-400">25°F</div>
+                                </div>
+                            </div>
+                            <p id="inspectorNightCond" class="mt-2.5 text-sm font-bold text-slate-100">Ясно, выхолаживание</p>
+                            <p id="inspectorNightCondEn" class="text-xs text-slate-400">Mostly clear</p>
+                        </div>
+                        <div class="mt-3.5 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
+                            <span class="text-slate-400">Осадки ночью:</span>
+                            <span id="inspectorNightPrecip" class="font-bold text-cyan-300">5% • снег</span>
+                        </div>
+                    </div>
+
+                    <!-- Soil, Pressure & Amplitude Strip -->
+                    <div class="sm:col-span-2 grid grid-cols-3 gap-2.5">
+                        <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
+                            <div class="text-[11px] text-slate-400">Почва 0–10 см</div>
+                            <div id="inspectorSoilTemp" class="text-base font-extrabold font-mono text-amber-300 mt-0.5">+0.9°C</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
+                            <div class="text-[11px] text-slate-400">Давление</div>
+                            <div id="inspectorPressure" class="text-base font-extrabold font-mono text-emerald-400 mt-0.5">753 мм</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
+                            <div class="text-[11px] text-slate-400">Амплитуда T°</div>
+                            <div id="inspectorAmplitude" class="text-base font-extrabold font-mono text-sky-300 mt-0.5">9.5°C</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wind Compass -->
+                <div class="lg:col-span-4 p-4 rounded-xl bg-slate-900/75 border border-slate-800 flex flex-col items-center justify-between">
+                    <div class="w-full flex items-center justify-between text-xs text-slate-400 font-mono">
+                        <span>Вектор ветра</span>
+                        <span id="inspectorWindDirCode" class="px-2.5 py-0.5 rounded-lg bg-sky-500/15 text-sky-300 font-bold">ЮВ (135°)</span>
+                    </div>
+
+                    <div class="my-2 relative w-32 h-32 flex items-center justify-center">
+                        <svg viewBox="0 0 140 140" class="w-full h-full">
+                            <circle cx="70" cy="70" r="60" fill="rgba(15,23,42,0.85)" stroke="rgba(148,163,184,0.22)" stroke-width="1.5"/>
+                            <circle cx="70" cy="70" r="44" fill="none" stroke="rgba(148,163,184,0.14)" stroke-dasharray="3 3" stroke-width="1"/>
+                            <text x="70" y="21" text-anchor="middle" fill="#cbd5e1" font-size="11" font-family="JetBrains Mono" font-weight="bold">С</text>
+                            <text x="122" y="74" text-anchor="middle" fill="#cbd5e1" font-size="11" font-family="JetBrains Mono" font-weight="bold">В</text>
+                            <text x="70" y="126" text-anchor="middle" fill="#cbd5e1" font-size="11" font-family="JetBrains Mono" font-weight="bold">Ю</text>
+                            <text x="18" y="74" text-anchor="middle" fill="#cbd5e1" font-size="11" font-family="JetBrains Mono" font-weight="bold">З</text>
+                            <g id="compassArrowGroup" transform="rotate(135, 70, 70)" style="transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);">
+                                <line x1="70" y1="70" x2="70" y2="26" stroke="#38bdf8" stroke-width="3.5" stroke-linecap="round"/>
+                                <polygon points="70,17 63,30 77,30" fill="#38bdf8"/>
+                                <circle cx="70" cy="70" r="5.5" fill="#0ea5e9" stroke="#0f172a" stroke-width="2"/>
+                            </g>
+                        </svg>
+                    </div>
+
+                    <div class="w-full text-center space-y-0.5">
+                        <div id="inspectorWindSpeed" class="text-lg font-extrabold font-mono text-white">3.1 м/с</div>
+                        <div id="inspectorWindGusts" class="text-xs font-mono text-amber-300 font-semibold">Порывы до: 6.0 м/с</div>
+                        <div id="inspectorWindName" class="text-xs text-slate-400">Юго-Восточный поток</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: Enlarged Mobile-Friendly Analytical Charts & Field Matrix -->
+        <section id="sec-charts" class="scroll-mt-16 glass-panel rounded-2xl p-4 sm:p-6 space-y-4">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-800 pb-3.5">
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h2 class="text-base sm:text-lg font-bold text-white">📈 Метеограммы и полевая аналитика</h2>
+                        <span id="analyticsPeriodBadge" class="text-xs font-mono px-2.5 py-0.5 rounded-lg bg-sky-500/15 text-sky-300 border border-sky-500/30">10 сут.</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5">Укрупненные графики для смартфона • Листайте по горизонтали и нажимайте на узлы</p>
+                </div>
+
+                <!-- 4 Analytics Tabs in a Touch-Scroll Row -->
+                <div class="touch-scroll-row gap-1.5 bg-slate-900/90 p-1.5 rounded-xl border border-slate-800" role="tablist">
+                    <button onclick="switchAnalyticsTab('temp')" id="tabBtn-temp" class="touch-target flex-shrink-0 px-3.5 py-2 rounded-lg text-xs font-bold transition bg-sky-500 text-slate-950 shadow">
+                        1. Температура и 0°C
+                    </button>
+                    <button onclick="switchAnalyticsTab('precip')" id="tabBtn-precip" class="touch-target flex-shrink-0 px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white">
+                        2. Осадки (дождь/снег)
+                    </button>
+                    <button onclick="switchAnalyticsTab('wind')" id="tabBtn-wind" class="touch-target flex-shrink-0 px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white">
+                        3. Ветер и порывы
+                    </button>
+                    <button onclick="switchAnalyticsTab('ops')" id="tabBtn-ops" class="touch-target flex-shrink-0 px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white">
+                        4. Почва 0–10см и Поле
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Swipe Hint Pill -->
+            <div class="flex items-center justify-between text-xs font-mono bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-800">
+                <span id="activeChartSummaryText" class="text-slate-200 truncate">Нажмите на любую точку графика для выбора суток</span>
+                <span class="md:hidden text-amber-300 flex-shrink-0 ml-2 font-semibold">↔ Свайп графика</span>
+            </div>
+
+            <!-- Tab 1: Temperature Profile -->
+            <div id="tabContent-temp" class="analytics-tab-panel space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="flex items-center gap-1.5 text-amber-300"><span class="w-3 h-1 rounded bg-amber-400 inline-block"></span> День Max</span>
+                        <span class="flex items-center gap-1.5 text-cyan-300"><span class="w-3 h-1 rounded bg-cyan-400 inline-block"></span> Ночь Min</span>
+                        <span class="flex items-center gap-1.5 text-rose-400"><span class="w-3 h-0.5 border-b border-dashed border-rose-400 inline-block"></span> Порог 0°C</span>
+                    </div>
+                    <span id="tempChartDynamicSummary" class="text-slate-400">Экстремумы периода</span>
+                </div>
+                <div id="tempChartWrapper" class="chart-scroll-wrap rounded-xl bg-slate-950/75 border border-slate-800/90 p-2.5 grid-bg"></div>
+            </div>
+
+            <!-- Tab 2: Precipitation & Phases -->
+            <div id="tabContent-precip" class="analytics-tab-panel hidden space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="flex items-center gap-1.5 text-cyan-300"><span class="w-3 h-3 rounded-sm bg-cyan-400 inline-block"></span> Снег (% / мм)</span>
+                        <span class="flex items-center gap-1.5 text-emerald-300"><span class="w-3 h-3 rounded-sm bg-emerald-400 inline-block"></span> Дождь (% / мм)</span>
+                        <span class="flex items-center gap-1.5 text-indigo-300"><span class="w-3 h-1 rounded bg-indigo-400 inline-block"></span> Влажность (%)</span>
+                    </div>
+                    <span id="precipChartDynamicSummary" class="text-slate-400">Фазы осадков</span>
+                </div>
+                <div id="precipChartWrapper" class="chart-scroll-wrap rounded-xl bg-slate-950/75 border border-slate-800/90 p-2.5 grid-bg"></div>
+            </div>
+
+            <!-- Tab 3: Wind Load & Gusts -->
+            <div id="tabContent-wind" class="analytics-tab-panel hidden space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="flex items-center gap-1.5 text-sky-300"><span class="w-3 h-1 rounded bg-sky-400 inline-block"></span> Ветер (м/с)</span>
+                        <span class="flex items-center gap-1.5 text-amber-300"><span class="w-3 h-0.5 border-b border-dashed border-amber-400 inline-block"></span> Порывы</span>
+                        <span class="flex items-center gap-1.5 text-rose-400"><span class="w-3 h-0.5 border-b border-dashed border-rose-400 inline-block"></span> Порог 10 м/с</span>
+                    </div>
+                    <span id="windChartDynamicSummary" class="text-amber-300">Пик ветровой нагрузки</span>
+                </div>
+                <div id="windChartWrapper" class="chart-scroll-wrap rounded-xl bg-slate-950/75 border border-slate-800/90 p-2.5 grid-bg"></div>
+            </div>
+
+            <!-- Tab 4: Soil 0-10cm & Field Matrix -->
+            <div id="tabContent-ops" class="analytics-tab-panel hidden space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="flex items-center gap-1.5 text-amber-300"><span class="w-3 h-1 rounded bg-amber-400 inline-block"></span> Почва 0–10 см</span>
+                        <span class="flex items-center gap-1.5 text-emerald-300"><span class="w-3 h-1 rounded bg-emerald-400 inline-block"></span> Точка росы</span>
+                        <span class="flex items-center gap-1.5 text-rose-400"><span class="w-3 h-0.5 border-b border-dashed border-rose-400 inline-block"></span> Промерзание 0°C</span>
+                    </div>
+                </div>
+                <div id="soilChartWrapper" class="chart-scroll-wrap rounded-xl bg-slate-950/75 border border-slate-800/90 p-2.5 grid-bg"></div>
+
+                <div id="opsSummaryCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                    <table class="w-full text-left border-collapse text-xs min-w-[640px]">
+                        <thead>
+                            <tr class="bg-slate-900/95 text-slate-400 font-mono border-b border-slate-800">
+                                <th class="py-3 px-3">Дата</th>
+                                <th class="py-3 px-3">Условия</th>
+                                <th class="py-3 px-3">Max / Min (Окно)</th>
+                                <th class="py-3 px-3">Осадки</th>
+                                <th class="py-3 px-3">Ветер (Порывы)</th>
+                                <th class="py-3 px-3">Почва / Давл.</th>
+                                <th class="py-3 px-3">Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody id="operationalTableBody" class="divide-y divide-slate-800/70 bg-slate-950/40 font-mono"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MOBILE BOTTOM THUMB NAVIGATION BAR (< 768px) -->
+    <nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/90 mobile-thumb-bar">
+        <div class="grid grid-cols-5 gap-1 px-2 pt-1.5">
+            <button onclick="mobileNavTo('sec-now', 'now')" id="mNav-now" class="min-h-[48px] rounded-xl flex flex-col items-center justify-center text-sky-400 bg-sky-500/10 font-mono text-[11px] font-bold transition">
+                <span class="text-base leading-none mb-0.5">🌡️</span>
+                <span>Сейчас</span>
+            </button>
+            <button onclick="mobileNavTo('sec-days', 'days')" id="mNav-days" class="min-h-[48px] rounded-xl flex flex-col items-center justify-center text-slate-300 hover:text-white font-mono text-[11px] font-medium transition">
+                <span class="text-base leading-none mb-0.5">📅</span>
+                <span>10 дней</span>
+            </button>
+            <button onclick="mobileNavTo('sec-hourly', 'hourly')" id="mNav-hourly" class="min-h-[48px] rounded-xl flex flex-col items-center justify-center text-slate-300 hover:text-white font-mono text-[11px] font-medium transition">
+                <span class="text-base leading-none mb-0.5">🕒</span>
+                <span>24 часа</span>
+            </button>
+            <button onclick="mobileNavTo('sec-charts', 'charts')" id="mNav-charts" class="min-h-[48px] rounded-xl flex flex-col items-center justify-center text-slate-300 hover:text-white font-mono text-[11px] font-medium transition">
+                <span class="text-base leading-none mb-0.5">📈</span>
+                <span>Графики</span>
+            </button>
+            <button onclick="mobileNavTo('sec-filters', 'filters', true)" id="mNav-filters" class="min-h-[48px] rounded-xl flex flex-col items-center justify-center text-slate-300 hover:text-white font-mono text-[11px] font-medium transition">
+                <span class="text-base leading-none mb-0.5">🎚️</span>
+                <span>Фильтры</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        // ============================================================================
+        // CONFIGURATION & CONSTANTS FOR ABAN, KRASNOYARSK KRAI (56.68° N, 96.07° E)
+        // ============================================================================
+        const ABAN_COORDS = { lat: 56.68, lon: 96.07, elev: 245, tz: 'Asia/Krasnoyarsk' };
+
+        // Optional: Hardcode your Google Weather API key here when hosting privately on your VPS
+        const DEFAULT_VPS_API_KEY = '';
+
+        const STORAGE_KEYS = {
+            CACHE_PAYLOAD: 'aban_weather_cache_v3',
+            GOOGLE_API_KEY: 'aban_wn3_api_key',
+            LEGACY_API_KEY: 'aban_google_wn3_api_key',
+            SOURCE_MODE: 'aban_preferred_source_mode',
+            OM_MODEL: 'aban_open_meteo_model'
+        };
+
+        // Reference High-Resolution Google DeepMind WeatherNext 3 Dataset (11 days: 1 Archive + 10 Forecast)
+        const referenceWn3Dataset = {
+            sourceType: 'reference_wn3',
+            sourceLabel: 'Эталон WeatherNext 3 (10 дн.)',
+            syncedAt: '18.10.2026, 10:00 (UTC+7)',
+            latencyMs: 0,
+            current: {
+                tempC: 4.8, tempF: 41, feelsC: 1.9, feelsF: 35,
+                condRu: 'Ясно (Антициклон)', iconType: 'sunny',
+                windMs: 3.1, windMph: 7, gustMs: 6.0, gustMph: 13,
+                windDeg: 135, windDirShort: 'ЮВ',
+                precipProb: 5, precipMm: 0.0, precipPhase: 'Сухо',
+                humidity: 68, soilTempC: 0.9, pressureHpa: 1004, pressureMm: 753, uv: 1,
+                obsTimeLabel: 'Вс, 18 октября 2026 • 10:00 (UTC+7)'
+            },
+            hourly10: {
+                tempC: 3.2, tempF: 38, feelsC: 0.1, feelsF: 32,
+                condRu: 'Ясно, антициклон (Sunny)', badgeRu: 'Ясно', iconType: 'sunny',
+                precipProb: 5, windMs: 3.1, windMph: 7, windDirShort: 'ЮВ', soilTempC: 0.9
+            },
+            days: [
+                {
+                    id: 'day0', idx: 0, isArchive: true, dayShort: 'Сб', dateStr: '17 окт', fullDateLabel: 'Сб, 17 окт 2026 (Архив)', label: 'Вчера (Архив)',
+                    dayCond: 'Ясно (Антициклон)', dayCondEn: 'Sunny', nightCond: 'Ясно, морозно', nightCondEn: 'Clear',
+                    iconType: 'sunny', nightIconType: 'clear-night', maxF: 39, maxC: 3.9, minF: 23, minC: -5.0,
+                    humidity: 72, uv: 1, precipDay: 5, precipDayType: 'снег', precipNight: 0, precipNightType: 'снег',
+                    precipMm: 0.0, rainMm: 0.0, snowMm: 0.0,
+                    windMph: 6, windMs: 2.7, gustMs: 5.1, gustMph: 11, windDirShort: 'ЮВ', windDirFull: 'Юго-Восточный', windDeg: 135,
+                    soilTempC: 0.2, dewPointC: -4.1, pressureHpa: 1006, pressureMm: 755
+                },
+                {
+                    id: 'day1', idx: 1, isArchive: false, dayShort: 'Вс', dateStr: '18 окт', fullDateLabel: 'Вс, 18 окт 2026 (Сегодня)', label: 'Сегодня',
+                    dayCond: 'Ясно', dayCondEn: 'Sunny', nightCond: 'Ясно с прояснениями', nightCondEn: 'Mostly clear',
+                    iconType: 'sunny', nightIconType: 'clear-night', maxF: 42, maxC: 5.6, minF: 25, minC: -3.9,
+                    humidity: 68, uv: 1, precipDay: 5, precipDayType: 'снег', precipNight: 5, precipNightType: 'снег',
+                    precipMm: 0.0, rainMm: 0.0, snowMm: 0.0,
+                    windMph: 7, windMs: 3.1, gustMs: 6.0, gustMph: 13, windDirShort: 'ЮВ', windDirFull: 'Юго-Восточный', windDeg: 135,
+                    soilTempC: 0.9, dewPointC: -3.0, pressureHpa: 1004, pressureMm: 753
+                },
+                {
+                    id: 'day2', idx: 2, isArchive: false, dayShort: 'Пн', dateStr: '19 окт', fullDateLabel: 'Пн, 19 окт 2026 (Завтра)', label: 'Завтра',
+                    dayCond: 'Ясно и тепло', dayCondEn: 'Sunny & Warm', nightCond: 'Переменная облачность', nightCondEn: 'Partly cloudy',
+                    iconType: 'sunny', nightIconType: 'partly-cloudy-night', maxF: 46, maxC: 7.8, minF: 33, minC: 0.6,
+                    humidity: 58, uv: 1, precipDay: 0, precipDayType: 'дождь', precipNight: 5, precipNightType: 'дождь',
+                    precipMm: 0.0, rainMm: 0.0, snowMm: 0.0,
+                    windMph: 10, windMs: 4.5, gustMs: 8.4, gustMph: 19, windDirShort: 'ЮЗ', windDirFull: 'Юго-Западный', windDeg: 225,
+                    soilTempC: 2.3, dewPointC: -0.9, pressureHpa: 999, pressureMm: 749
+                },
+                {
+                    id: 'day3', idx: 3, isArchive: false, dayShort: 'Вт', dateStr: '20 окт', fullDateLabel: 'Вт, 20 окт 2026', label: 'Вторник',
+                    dayCond: 'Малооблачно', dayCondEn: 'Mostly sunny', nightCond: 'Облачно с прояснениями', nightCondEn: 'Mostly cloudy',
+                    iconType: 'mostly-sunny', nightIconType: 'partly-cloudy-night', maxF: 43, maxC: 6.1, minF: 34, minC: 1.1,
+                    humidity: 63, uv: 1, precipDay: 10, precipDayType: 'дождь', precipNight: 15, precipNightType: 'дождь',
+                    precipMm: 0.4, rainMm: 0.4, snowMm: 0.0,
+                    windMph: 12, windMs: 5.4, gustMs: 9.8, gustMph: 22, windDirShort: 'ЮЗ', windDirFull: 'Юго-Западный', windDeg: 225,
+                    soilTempC: 2.6, dewPointC: 0.2, pressureHpa: 994, pressureMm: 746
+                },
+                {
+                    id: 'day4', idx: 4, isArchive: false, dayShort: 'Ср', dateStr: '21 окт', fullDateLabel: 'Ср, 21 окт 2026', label: 'Среда',
+                    dayCond: 'Облачно, небольшой дождь', dayCondEn: 'Light rain', nightCond: 'Переход в снег', nightCondEn: 'Rain to snow',
+                    iconType: 'rain-cloudy', nightIconType: 'snow', maxF: 40, maxC: 4.4, minF: 27, minC: -2.8,
+                    humidity: 74, uv: 0, precipDay: 30, precipDayType: 'дождь', precipNight: 25, precipNightType: 'снег',
+                    precipMm: 1.8, rainMm: 1.1, snowMm: 0.7,
+                    windMph: 15, windMs: 6.7, gustMs: 11.8, gustMph: 26, windDirShort: 'ЮЗ', windDirFull: 'Юго-Западный', windDeg: 225,
+                    soilTempC: 1.5, dewPointC: -1.1, pressureHpa: 989, pressureMm: 742
+                },
+                {
+                    id: 'day5', idx: 5, isArchive: false, dayShort: 'Чт', dateStr: '22 окт', fullDateLabel: 'Чт, 22 окт 2026', label: 'Четверг',
+                    dayCond: 'Переменная облачность', dayCondEn: 'Partly sunny', nightCond: 'Ясно, выхолаживание', nightCondEn: 'Clear & Cold',
+                    iconType: 'partly-sunny', nightIconType: 'clear-night', maxF: 34, maxC: 1.1, minF: 21, minC: -6.1,
+                    humidity: 71, uv: 0, precipDay: 15, precipDayType: 'снег', precipNight: 10, precipNightType: 'снег',
+                    precipMm: 0.5, rainMm: 0.0, snowMm: 0.5,
+                    windMph: 11, windMs: 4.9, gustMs: 8.6, gustMph: 19, windDirShort: 'ЮЗ', windDirFull: 'Юго-Западный', windDeg: 225,
+                    soilTempC: -0.4, dewPointC: -4.8, pressureHpa: 997, pressureMm: 748
+                },
+                {
+                    id: 'day6', idx: 6, isArchive: false, dayShort: 'Пт', dateStr: '23 окт', fullDateLabel: 'Пт, 23 окт 2026', label: 'Пятница',
+                    dayCond: 'Переменная облачность', dayCondEn: 'Partly sunny', nightCond: 'Облачно с прояснениями', nightCondEn: 'Mostly cloudy',
+                    iconType: 'partly-sunny', nightIconType: 'partly-cloudy-night', maxF: 37, maxC: 2.8, minF: 26, minC: -3.3,
+                    humidity: 75, uv: 0, precipDay: 10, precipDayType: 'снег', precipNight: 10, precipNightType: 'снег',
+                    precipMm: 0.3, rainMm: 0.0, snowMm: 0.3,
+                    windMph: 10, windMs: 4.5, gustMs: 7.9, gustMph: 18, windDirShort: 'ЮЗ', windDirFull: 'Юго-Западный', windDeg: 225,
+                    soilTempC: -0.1, dewPointC: -3.2, pressureHpa: 1001, pressureMm: 751
+                },
+                {
+                    id: 'day7', idx: 7, isArchive: false, dayShort: 'Сб', dateStr: '24 окт', fullDateLabel: 'Сб, 24 окт 2026 (Выходной)', label: 'Суббота',
+                    dayCond: 'Небольшой снег', dayCondEn: 'Light snow', nightCond: 'Снежные заряды', nightCondEn: 'Snow showers',
+                    iconType: 'snow', nightIconType: 'snow', maxF: 35, maxC: 1.7, minF: 24, minC: -4.4,
+                    humidity: 82, uv: 0, precipDay: 35, precipDayType: 'снег', precipNight: 25, precipNightType: 'снег',
+                    precipMm: 1.6, rainMm: 0.0, snowMm: 1.6,
+                    windMph: 12, windMs: 5.2, gustMs: 9.4, gustMph: 21, windDirShort: 'З', windDirFull: 'Западный', windDeg: 270,
+                    soilTempC: -0.3, dewPointC: -3.6, pressureHpa: 993, pressureMm: 745
+                },
+                {
+                    id: 'day8', idx: 8, isArchive: false, dayShort: 'Вс', dateStr: '25 окт', fullDateLabel: 'Вс, 25 окт 2026 (Выходной)', label: 'Воскресенье',
+                    dayCond: 'Малооблачно', dayCondEn: 'Mostly sunny', nightCond: 'Морозно и ясно', nightCondEn: 'Clear & Frosty',
+                    iconType: 'mostly-sunny', nightIconType: 'clear-night', maxF: 33, maxC: 0.6, minF: 20, minC: -6.7,
+                    humidity: 74, uv: 1, precipDay: 10, precipDayType: 'снег', precipNight: 5, precipNightType: 'снег',
+                    precipMm: 0.1, rainMm: 0.0, snowMm: 0.1,
+                    windMph: 8, windMs: 3.6, gustMs: 6.5, gustMph: 15, windDirShort: 'СЗ', windDirFull: 'Северо-Западный', windDeg: 315,
+                    soilTempC: -0.8, dewPointC: -5.4, pressureHpa: 1005, pressureMm: 754
+                },
+                {
+                    id: 'day9', idx: 9, isArchive: false, dayShort: 'Пн', dateStr: '26 окт', fullDateLabel: 'Пн, 26 окт 2026', label: 'Понедельник',
+                    dayCond: 'Переменная облачность', dayCondEn: 'Partly sunny', nightCond: 'Облачно с прояснениями', nightCondEn: 'Mostly cloudy',
+                    iconType: 'partly-sunny', nightIconType: 'partly-cloudy-night', maxF: 36, maxC: 2.2, minF: 25, minC: -3.9,
+                    humidity: 76, uv: 1, precipDay: 15, precipDayType: 'снег', precipNight: 15, precipNightType: 'снег',
+                    precipMm: 0.4, rainMm: 0.0, snowMm: 0.4,
+                    windMph: 9, windMs: 4.1, gustMs: 7.4, gustMph: 17, windDirShort: 'З', windDirFull: 'Западный', windDeg: 270,
+                    soilTempC: -0.5, dewPointC: -3.8, pressureHpa: 1002, pressureMm: 752
+                },
+                {
+                    id: 'day10', idx: 10, isArchive: false, dayShort: 'Вт', dateStr: '27 окт', fullDateLabel: 'Вт, 27 окт 2026', label: 'Вторник',
+                    dayCond: 'Облачно с прояснениями', dayCondEn: 'Mostly cloudy', nightCond: 'Небольшой снег', nightCondEn: 'Light snow',
+                    iconType: 'cloudy-snow', nightIconType: 'snow', maxF: 34, maxC: 1.1, minF: 23, minC: -5.0,
+                    humidity: 80, uv: 0, precipDay: 25, precipDayType: 'снег', precipNight: 20, precipNightType: 'снег',
+                    precipMm: 1.1, rainMm: 0.0, snowMm: 1.1,
+                    windMph: 10, windMs: 4.4, gustMs: 8.1, gustMph: 18, windDirShort: 'З', windDirFull: 'Западный', windDeg: 270,
+                    soilTempC: -0.6, dewPointC: -4.2, pressureHpa: 998, pressureMm: 749
+                }
+            ]
+        };
+
+        let activeDataset = JSON.parse(JSON.stringify(referenceWn3Dataset));
+        let allDaysData = activeDataset.days;
+
+        const timeWindowsConfig = {
+            full: { id: 'full', label: '24 часа (00:00–24:00)', shortLabel: '00–24ч', isHourActive: (h) => true },
+            day_shift: { id: 'day_shift', label: 'Дневная смена (08:00–20:00)', shortLabel: '08–20ч', isHourActive: (h) => h >= 8 && h <= 20 },
+            daylight: { id: 'daylight', label: 'Световой день (07:00–18:00)', shortLabel: '07–18ч', isHourActive: (h) => h >= 7 && h <= 18 },
+            night: { id: 'night', label: 'Ночь (20:00–08:00)', shortLabel: '20–08ч', isHourActive: (h) => h >= 20 || h <= 8 }
+        };
+
+        let state = {
+            unit: 'metric', // 'metric' | 'imperial' | 'dual'
+            sourceMode: localStorage.getItem(STORAGE_KEYS.SOURCE_MODE) || 'hybrid',
+            openMeteoModel: localStorage.getItem(STORAGE_KEYS.OM_MODEL) || 'best_match',
+            apiKey: localStorage.getItem('aban_wn3_api_key') || localStorage.getItem(STORAGE_KEYS.LEGACY_API_KEY) || DEFAULT_VPS_API_KEY,
+            startIdx: 1,
+            endIdx: 10,
+            activePreset: '10d',
+            timeWindow: 'full',
+            selectedDayId: 'day1',
+            selectedHourSlot: 14, // Interactive hour slot inside Day Inspector (0..22)
+            filter: 'all',
+            activeTab: 'temp',
+            drawerOpen: window.innerWidth >= 1024, // Collapsed on mobile (<768px), expanded on wide desktop
+            isLoading: false
+        };
+
+        // ============================================================================
+        // CONVERSION & FORMATTING HELPERS
+        // ============================================================================
+        function cToF(c) { return Math.round((c * 9) / 5 + 32); }
+        function msToMph(ms) { return Math.round(ms * 2.23694); }
+        function hpaToMmHg(hpa) { return Math.round(hpa * 0.750062); }
+
+        function degToCompass(deg) {
+            const dirs = [
+                { s: 'С', f: 'Северный' }, { s: 'СВ', f: 'Северо-Восточный' },
+                { s: 'В', f: 'Восточный' }, { s: 'ЮВ', f: 'Юго-Восточный' },
+                { s: 'Ю', f: 'Южный' }, { s: 'ЮЗ', f: 'Юго-Западный' },
+                { s: 'З', f: 'Западный' }, { s: 'СЗ', f: 'Северо-Западный' }
+            ];
+            const idx = Math.round(((deg %= 360) < 0 ? deg + 360 : deg) / 45) % 8;
+            return dirs[idx];
+        }
+
+        function formatC(val) {
+            const num = Number(val) || 0;
+            const sign = num > 0 ? '+' : '';
+            return `${sign}${num.toFixed(1)}°C`;
+        }
+
+        function formatTemp(c, f, shortMode = false) {
+            const cVal = Number(c) || 0;
+            const fVal = f !== undefined ? f : cToF(cVal);
+            if (state.unit === 'metric') return formatC(cVal);
+            if (state.unit === 'imperial') return `${fVal}°F`;
+            return shortMode ? `${formatC(cVal)} (${fVal}°F)` : `${formatC(cVal)} / ${fVal}°F`;
+        }
+
+        function formatTempSecondary(c, f) {
+            const cVal = Number(c) || 0;
+            const fVal = f !== undefined ? f : cToF(cVal);
+            if (state.unit === 'metric') return `${fVal}°F`;
+            if (state.unit === 'imperial') return formatC(cVal);
+            return `Двойная шкала`;
+        }
+
+        function formatWind(ms, mph) {
+            const msVal = Number(ms) || 0;
+            const mphVal = mph !== undefined ? mph : msToMph(msVal);
+            if (state.unit === 'metric') return `${msVal.toFixed(1)} м/с`;
+            if (state.unit === 'imperial') return `${mphVal} mph`;
+            return `${msVal.toFixed(1)} м/с (${mphVal} mph)`;
+        }
+
+        function wmoCodeToWeather(code, tempC = 2) {
+            if (code === 0) return { ru: 'Ясно', en: 'Sunny / Clear', icon: 'sunny', nightIcon: 'clear-night', phase: tempC < 0.5 ? 'снег' : 'дождь' };
+            if (code === 1 || code === 2) return { ru: 'Малооблачно', en: 'Partly cloudy', icon: 'mostly-sunny', nightIcon: 'partly-cloudy-night', phase: tempC < 0.5 ? 'снег' : 'дождь' };
+            if (code === 3 || code === 45 || code === 48) return { ru: 'Облачно с прояснениями', en: 'Mostly cloudy', icon: 'partly-sunny', nightIcon: 'partly-cloudy-night', phase: tempC < 0.5 ? 'снег' : 'дождь' };
+            if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) {
+                return { ru: 'Небольшой дождь', en: 'Light rain', icon: 'rain-cloudy', nightIcon: 'rain-cloudy', phase: 'дождь' };
+            }
+            if ((code >= 71 && code <= 77) || code === 85 || code === 86) {
+                return { ru: 'Небольшой снег', en: 'Snow showers', icon: 'snow', nightIcon: 'snow', phase: 'снег' };
+            }
+            return { ru: 'Переменная облачность', en: 'Partly cloudy', icon: 'partly-sunny', nightIcon: 'partly-cloudy-night', phase: tempC < 0.5 ? 'снег' : 'дождь' };
+        }
+
+        function googleCondToMeta(condObj, precipObj, tempC = 2, isNight = false) {
+            const type = (condObj?.type || '').toUpperCase();
+            const pType = (precipObj?.type || '').toUpperCase();
+            let icon = isNight ? 'partly-cloudy-night' : 'partly-sunny';
+            let phase = (pType === 'SNOW' || pType === 'ICE' || tempC <= 0.5) ? 'снег' : 'дождь';
+
+            if (type.includes('SNOW') || type.includes('FLURRIES') || type.includes('BLIZZARD') || pType === 'SNOW') {
+                icon = type.includes('CLOUDY') || type.includes('SHOWER') ? 'cloudy-snow' : 'snow';
+                phase = 'снег';
+            } else if (type.includes('RAIN') || type.includes('DRIZZLE') || type.includes('SHOWER') || type.includes('THUNDER')) {
+                icon = 'rain-cloudy';
+                phase = 'дождь';
+            } else if (type === 'CLEAR' || type === 'SUNNY') {
+                icon = isNight ? 'clear-night' : 'sunny';
+            } else if (type === 'MOSTLY_CLEAR' || type === 'MOSTLY_SUNNY' || type === 'PARTLY_CLOUDY') {
+                icon = isNight ? 'partly-cloudy-night' : 'mostly-sunny';
+            } else if (type.includes('CLOUDY') || type.includes('OVERCAST') || type.includes('FOG')) {
+                icon = isNight ? 'partly-cloudy-night' : 'cloudy';
+            }
+            return { icon, phase, en: type ? type.replace(/_/g, ' ').toLowerCase() : (isNight ? 'Mostly cloudy' : 'Partly sunny') };
+        }
+
+        // ============================================================================
+        // COLLAPSIBLE FILTER DRAWER & MOBILE THUMB NAVIGATION
+        // ============================================================================
+        function toggleControlsDrawer(forceOpen = null) {
+            const body = document.getElementById('controlsDrawerBody');
+            const chevron = document.getElementById('drawerToggleChevron');
+            const btnText = document.getElementById('drawerToggleBtnText');
+
+            const isCurrentlyVisible = !body.classList.contains('hidden');
+            const nextState = forceOpen !== null ? forceOpen : !isCurrentlyVisible;
+            state.drawerOpen = nextState;
+
+            if (nextState) {
+                body.classList.remove('hidden');
+                body.classList.add('block');
+                chevron.style.transform = 'rotate(180deg)';
+                btnText.textContent = 'Свернуть';
+            } else {
+                body.classList.add('hidden');
+                body.classList.remove('block', 'lg:block');
+                chevron.style.transform = 'rotate(0deg)';
+                btnText.textContent = 'Настроить';
+            }
+        }
+
+        function mobileNavTo(sectionId, navKey, openDrawerIfFilters = false) {
+            if (openDrawerIfFilters) {
+                toggleControlsDrawer(true);
+            }
+            const target = document.getElementById(sectionId);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            ['now', 'days', 'hourly', 'charts', 'filters'].forEach(k => {
+                const btn = document.getElementById(`mNav-${k}`);
+                if (!btn) return;
+                if (k === navKey) {
+                    btn.className = 'min-h-[48px] rounded-xl flex flex-col items-center justify-center text-sky-400 bg-sky-500/15 border border-sky-500/30 font-mono text-[11px] font-bold transition';
+                } else {
+                    btn.className = 'min-h-[48px] rounded-xl flex flex-col items-center justify-center text-slate-300 hover:text-white font-mono text-[11px] font-medium transition';
+                }
+            });
+        }
+
+        // ============================================================================
+        // LIVE METEO CONNECTORS (OPEN-METEO + GOOGLE WEATHERNEXT 3)
+        // ============================================================================
+        async function fetchOpenMeteoLive() {
+            const t0 = performance.now();
+            const isEcmwf = state.openMeteoModel === 'ecmwf_ifs025';
+
+            // Avoid incompatible fields on ECMWF IFS 0.25 to prevent HTTP 400
+            const buildParams = (useModel) => {
+                const p = new URLSearchParams({
+                    latitude: ABAN_COORDS.lat,
+                    longitude: ABAN_COORDS.lon,
+                    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m',
+                    hourly: useModel && isEcmwf
+                        ? 'temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,soil_temperature_0_to_7cm,dew_point_2m'
+                        : 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,wind_speed_10m,soil_temperature_0cm,soil_temperature_6cm,dew_point_2m',
+                    daily: useModel && isEcmwf
+                        ? 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant'
+                        : 'weather_code,temperature_2m_max,temperature_2m_min,uv_index_max,precipitation_sum,rain_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant',
+                    past_days: '1',
+                    forecast_days: '10',
+                    wind_speed_unit: 'ms',
+                    timezone: ABAN_COORDS.tz
+                });
+                if (useModel && state.openMeteoModel && state.openMeteoModel !== 'best_match') {
+                    p.set('models', state.openMeteoModel);
+                }
+                return p;
+            };
+
+            let resp = await fetch(`https://api.open-meteo.com/v1/forecast?${buildParams(true).toString()}`);
+            if (!resp.ok && state.openMeteoModel !== 'best_match') {
+                resp = await fetch(`https://api.open-meteo.com/v1/forecast?${buildParams(false).toString()}`);
+            }
+            if (!resp.ok) throw new Error(`Open-Meteo HTTP ${resp.status}`);
+            const data = await resp.json();
+            const latencyMs = Math.round(performance.now() - t0);
+
+            const ruWeekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+            const ruMonths = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+            const days = (data.daily.time || []).slice(0, 11).map((isoDate, idx) => {
+                const dt = new Date(isoDate + 'T12:00:00');
+                const dayShort = ruWeekdays[dt.getDay()];
+                const dateStr = `${dt.getDate()} ${ruMonths[dt.getMonth()]}`;
+                const maxC = +(data.daily.temperature_2m_max[idx] ?? 2.5).toFixed(1);
+                const minC = +(data.daily.temperature_2m_min[idx] ?? -2.0).toFixed(1);
+                const code = data.daily.weather_code[idx] ?? 2;
+                const wInfo = wmoCodeToWeather(code, maxC);
+                const nightWInfo = wmoCodeToWeather(code, minC);
+
+                const hStart = idx * 24;
+                const hTemps = (data.hourly?.temperature_2m || []).slice(hStart, hStart + 24);
+                const hSoil0 = (data.hourly?.soil_temperature_0cm || data.hourly?.soil_temperature_0_to_7cm || []).slice(hStart, hStart + 24).filter(v => v !== null && v !== undefined);
+                const hSoil6 = (data.hourly?.soil_temperature_6cm || []).slice(hStart, hStart + 24).filter(v => v !== null && v !== undefined);
+                const hDew = (data.hourly?.dew_point_2m || []).slice(hStart, hStart + 24).filter(v => v !== null && v !== undefined);
+
+                const avgSoilC = hSoil0.length
+                    ? +(hSoil0.reduce((a, b) => a + b, 0) / hSoil0.length).toFixed(1)
+                    : hSoil6.length
+                        ? +(hSoil6.reduce((a, b) => a + b, 0) / hSoil6.length).toFixed(1)
+                        : +((maxC + minC) * 0.35 + 0.8).toFixed(1);
+
+                const avgDewC = hDew.length
+                    ? +(hDew.reduce((a, b) => a + b, 0) / hDew.length).toFixed(1)
+                    : +(minC - 1.2).toFixed(1);
+
+                const precipMm = +(data.daily.precipitation_sum?.[idx] ?? 0).toFixed(1);
+                const rawProb = data.daily.precipitation_probability_max?.[idx];
+                const precipProb = (rawProb !== null && rawProb !== undefined)
+                    ? Math.round(rawProb)
+                    : Math.min(95, Math.round(precipMm > 0 ? 25 + precipMm * 15 : 10));
+                const rainMm = +(data.daily.rain_sum?.[idx] ?? (maxC > 1.5 ? precipMm * 0.6 : 0)).toFixed(1);
+                const snowMm = +(Math.max(0, precipMm - rainMm)).toFixed(1);
+
+                const windMs = +(data.daily.wind_speed_10m_max?.[idx] ?? 4.0).toFixed(1);
+                const gustMs = +(data.daily.wind_gusts_10m_max?.[idx] ?? windMs * 1.75).toFixed(1);
+                const windDeg = Math.round(data.daily.wind_direction_10m_dominant?.[idx] ?? 250);
+                const comp = degToCompass(windDeg);
+
+                let label = idx === 0 ? 'Вчера (Архив)' : idx === 1 ? 'Сегодня' : idx === 2 ? 'Завтра' : dayShort;
+
+                return {
+                    id: `day${idx}`, idx, isArchive: idx === 0,
+                    dayShort, dateStr,
+                    fullDateLabel: `${dayShort}, ${dateStr} ${dt.getFullYear()}${idx === 0 ? ' (Архив)' : idx === 1 ? ' (Сегодня)' : ''}`,
+                    label,
+                    dayCond: wInfo.ru, dayCondEn: wInfo.en,
+                    nightCond: minC < -3 ? 'Ясно, выхолаживание' : nightWInfo.ru, nightCondEn: nightWInfo.en,
+                    iconType: wInfo.icon, nightIconType: nightWInfo.nightIcon,
+                    maxC, maxF: cToF(maxC), minC, minF: cToF(minC),
+                    humidity: Math.min(96, Math.max(48, Math.round(78 - (maxC - minC) * 1.6 + precipProb * 0.2))),
+                    uv: Math.round(data.daily.uv_index_max?.[idx] ?? 1),
+                    precipDay: precipProb,
+                    precipDayType: snowMm >= rainMm && maxC < 2.5 ? 'снег' : (rainMm > 0 ? 'дождь' : wInfo.phase),
+                    precipNight: Math.max(5, Math.round(precipProb * 0.75)),
+                    precipNightType: minC <= 0.5 ? 'снег' : 'дождь',
+                    precipMm, rainMm, snowMm,
+                    windMs, windMph: msToMph(windMs), gustMs, gustMph: msToMph(gustMs),
+                    windDirShort: comp.s, windDirFull: comp.f, windDeg,
+                    soilTempC: avgSoilC, dewPointC: avgDewC,
+                    pressureHpa: Math.round(data.current?.surface_pressure || 994),
+                    pressureMm: hpaToMmHg(data.current?.surface_pressure || 994),
+                    hourlyTempsC: hTemps.length === 24 ? hTemps : null
+                };
+            });
+
+            const cur = data.current || {};
+            const curTempC = +(cur.temperature_2m ?? days[1].maxC).toFixed(1);
+            const curFeelsC = +(cur.apparent_temperature ?? curTempC - 3.0).toFixed(1);
+            const curWindMs = +(cur.wind_speed_10m ?? 3.5).toFixed(1);
+            const curGustMs = +(cur.wind_gusts_10m ?? curWindMs * 1.75).toFixed(1);
+            const curWindDeg = Math.round(cur.wind_direction_10m ?? 250);
+            const curComp = degToCompass(curWindDeg);
+            const curW = wmoCodeToWeather(cur.weather_code ?? 2, curTempC);
+            const curPressHpa = Math.round(cur.surface_pressure ?? 995);
+
+            const h10Idx = 34;
+            const h10TempC = +(data.hourly?.temperature_2m?.[h10Idx] ?? days[1].maxC * 0.85).toFixed(1);
+            const h10FeelsC = +(data.hourly?.apparent_temperature?.[h10Idx] ?? h10TempC - 2.8).toFixed(1);
+            const h10Prob = Math.round(data.hourly?.precipitation_probability?.[h10Idx] ?? days[1].precipDay);
+            const h10WindMs = +(data.hourly?.wind_speed_10m?.[h10Idx] ?? days[1].windMs).toFixed(1);
+            const h10SoilC = +(data.hourly?.soil_temperature_0cm?.[h10Idx] ?? data.hourly?.soil_temperature_0_to_7cm?.[h10Idx] ?? days[1].soilTempC).toFixed(1);
+            const h10W = wmoCodeToWeather(data.hourly?.weather_code?.[h10Idx] ?? 2, h10TempC);
+
+            const nowStr = new Date().toLocaleString('ru-RU', {
+                timeZone: ABAN_COORDS.tz, day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+            });
+
+            const modelNameMap = {
+                best_match: 'Open-Meteo Auto (10 дн. + Почва)',
+                ecmwf_ifs025: 'Open-Meteo ECMWF IFS 0.25°',
+                gfs_seamless: 'Open-Meteo NOAA GFS'
+            };
+
+            return {
+                sourceType: 'live_open_meteo',
+                sourceLabel: modelNameMap[state.openMeteoModel] || 'Open-Meteo Live',
+                syncedAt: `${nowStr} (UTC+7)`,
+                latencyMs,
+                current: {
+                    tempC: curTempC, tempF: cToF(curTempC), feelsC: curFeelsC, feelsF: cToF(curFeelsC),
+                    condRu: curW.ru, iconType: curW.icon,
+                    windMs: curWindMs, windMph: msToMph(curWindMs), gustMs: curGustMs, gustMph: msToMph(curGustMs),
+                    windDeg: curWindDeg, windDirShort: curComp.s,
+                    precipProb: days[1].precipDay, precipMm: +(cur.precipitation ?? days[1].precipMm).toFixed(1),
+                    precipPhase: curTempC <= 0.5 ? 'Снег' : 'Дождь',
+                    humidity: Math.round(cur.relative_humidity_2m ?? days[1].humidity),
+                    soilTempC: days[1].soilTempC, pressureHpa: curPressHpa, pressureMm: hpaToMmHg(curPressHpa),
+                    uv: days[1].uv, obsTimeLabel: `Живой срез • ${nowStr} (Абан UTC+7)`
+                },
+                hourly10: {
+                    tempC: h10TempC, tempF: cToF(h10TempC), feelsC: h10FeelsC, feelsF: cToF(h10FeelsC),
+                    condRu: `${h10W.ru} (${h10W.en})`, badgeRu: h10W.ru, iconType: h10W.icon,
+                    precipProb: h10Prob, windMs: h10WindMs, windMph: msToMph(h10WindMs),
+                    windDirShort: days[1].windDirShort, soilTempC: h10SoilC
+                },
+                days
+            };
+        }
+
+        async function fetchGoogleWeatherNext3Live(apiKey, soilFallbackPayload = null) {
+            const t0 = performance.now();
+            const q = `key=${encodeURIComponent(apiKey)}&location.latitude=${ABAN_COORDS.lat}&location.longitude=${ABAN_COORDS.lon}&languageCode=ru&unitsSystem=METRIC`;
+            const [curResp, daysResp] = await Promise.all([
+                fetch(`https://weather.googleapis.com/v1/currentConditions:lookup?${q}`),
+                fetch(`https://weather.googleapis.com/v1/forecast/days:lookup?${q}&days=10&pageSize=10`)
+            ]);
+            if (!curResp.ok || !daysResp.ok) {
+                let errDetail = `${curResp.status}/${daysResp.status}`;
+                try {
+                    const errJson = !daysResp.ok ? await daysResp.json() : await curResp.json();
+                    if (errJson?.error?.message) errDetail = errJson.error.message;
+                } catch (_) {}
+                throw new Error(`Google Weather API: ${errDetail}`);
+            }
+            const curJson = await curResp.json();
+            const daysJson = await daysResp.json();
+
+            let gDays = Array.isArray(daysJson.forecastDays) ? [...daysJson.forecastDays] : [];
+            let nextToken = daysJson.nextPageToken;
+            let pageGuard = 0;
+            while (gDays.length < 10 && nextToken && pageGuard < 3) {
+                pageGuard++;
+                const nextResp = await fetch(`https://weather.googleapis.com/v1/forecast/days:lookup?${q}&days=10&pageSize=10&pageToken=${encodeURIComponent(nextToken)}`);
+                if (!nextResp.ok) break;
+                const nextJson = await nextResp.json();
+                if (Array.isArray(nextJson.forecastDays) && nextJson.forecastDays.length) {
+                    gDays.push(...nextJson.forecastDays);
+                }
+                nextToken = nextJson.nextPageToken;
+            }
+
+            const latencyMs = Math.round(performance.now() - t0);
+            const ruWeekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+            const ruMonths = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+            const baseDays = (soilFallbackPayload && Array.isArray(soilFallbackPayload.days) && soilFallbackPayload.days.length >= 11)
+                ? soilFallbackPayload.days
+                : referenceWn3Dataset.days;
+
+            const mappedForecastDays = [];
+            for (let i = 0; i < 10; i++) {
+                const idx = i + 1;
+                const gd = gDays[i];
+                const refDay = baseDays[idx] || referenceWn3Dataset.days[idx] || referenceWn3Dataset.days[referenceWn3Dataset.days.length - 1];
+
+                if (!gd) {
+                    mappedForecastDays.push({ ...refDay, id: `day${idx}`, idx, isArchive: false });
+                    continue;
+                }
+
+                let dt = null;
+                if (gd.displayDate?.year && gd.displayDate?.month && gd.displayDate?.day) {
+                    dt = new Date(gd.displayDate.year, gd.displayDate.month - 1, gd.displayDate.day, 12, 0, 0);
+                } else if (gd.interval?.startTime) {
+                    dt = new Date(gd.interval.startTime);
+                }
+
+                const dayShort = dt ? ruWeekdays[dt.getDay()] : refDay.dayShort;
+                const dateStr = dt ? `${dt.getDate()} ${ruMonths[dt.getMonth()]}` : refDay.dateStr;
+                const yearNum = dt ? dt.getFullYear() : 2026;
+                const label = idx === 1 ? 'Сегодня' : idx === 2 ? 'Завтра' : dayShort;
+                const fullDateLabel = `${dayShort}, ${dateStr} ${yearNum}${idx === 1 ? ' (Сегодня)' : ''}`;
+
+                const maxC = +(gd.maxTemperature?.degrees ?? refDay.maxC).toFixed(1);
+                const minC = +(gd.minTemperature?.degrees ?? refDay.minC).toFixed(1);
+
+                const dayForecast = gd.daytimeForecast || {};
+                const nightForecast = gd.nighttimeForecast || {};
+
+                const dayMeta = googleCondToMeta(dayForecast.weatherCondition, dayForecast.precipitation, maxC, false);
+                const nightMeta = googleCondToMeta(nightForecast.weatherCondition, nightForecast.precipitation, minC, true);
+
+                const dayDesc = dayForecast.weatherCondition?.description?.text || refDay.dayCond;
+                const nightDesc = nightForecast.weatherCondition?.description?.text || refDay.nightCond;
+
+                const pDay = Math.round(dayForecast.precipitation?.probability?.percent ?? refDay.precipDay);
+                const pNight = Math.round(nightForecast.precipitation?.probability?.percent ?? refDay.precipNight);
+                const qpfDay = +(dayForecast.precipitation?.qpf?.quantity ?? 0).toFixed(1);
+                const qpfNight = +(nightForecast.precipitation?.qpf?.quantity ?? 0).toFixed(1);
+                const qpfMm = +((qpfDay + qpfNight) || refDay.precipMm || 0).toFixed(1);
+
+                const windVal = dayForecast.wind?.speed?.value ?? nightForecast.wind?.speed?.value;
+                const windUnit = dayForecast.wind?.speed?.unit || 'KILOMETERS_PER_HOUR';
+                const windMs = windVal !== undefined
+                    ? +(windUnit === 'MILES_PER_HOUR' ? windVal * 0.44704 : windVal / 3.6).toFixed(1)
+                    : refDay.windMs;
+
+                const gustVal = dayForecast.wind?.gust?.value ?? nightForecast.wind?.gust?.value;
+                const gustMs = gustVal !== undefined
+                    ? +(windUnit === 'MILES_PER_HOUR' ? gustVal * 0.44704 : gustVal / 3.6).toFixed(1)
+                    : +(windMs * 1.65).toFixed(1);
+
+                const windDeg = Math.round(dayForecast.wind?.direction?.degrees ?? refDay.windDeg);
+                const comp = degToCompass(windDeg);
+                const humidity = Math.round(dayForecast.relativeHumidity ?? nightForecast.relativeHumidity ?? refDay.humidity);
+                const uv = Math.round(dayForecast.uvIndex ?? refDay.uv ?? 1);
+
+                mappedForecastDays.push({
+                    ...refDay,
+                    id: `day${idx}`, idx, isArchive: false,
+                    dayShort, dateStr, fullDateLabel, label,
+                    maxC, maxF: cToF(maxC), minC, minF: cToF(minC),
+                    dayCond: dayDesc, dayCondEn: dayMeta.en,
+                    nightCond: nightDesc, nightCondEn: nightMeta.en,
+                    iconType: dayMeta.icon, nightIconType: nightMeta.icon,
+                    humidity, uv,
+                    precipDay: pDay, precipDayType: dayMeta.phase,
+                    precipNight: pNight, precipNightType: nightMeta.phase,
+                    precipMm: qpfMm,
+                    rainMm: dayMeta.phase === 'дождь' ? qpfMm : 0,
+                    snowMm: dayMeta.phase === 'снег' ? qpfMm : 0,
+                    windMs, windMph: msToMph(windMs), gustMs, gustMph: msToMph(gustMs),
+                    windDeg, windDirShort: comp.s, windDirFull: comp.f
+                });
+            }
+
+            let archiveDay = { ...baseDays[0], id: 'day0', idx: 0, isArchive: true };
+            if (!soilFallbackPayload && gDays[0]?.displayDate?.year) {
+                const firstDt = new Date(gDays[0].displayDate.year, gDays[0].displayDate.month - 1, gDays[0].displayDate.day, 12, 0, 0);
+                firstDt.setDate(firstDt.getDate() - 1);
+                const aShort = ruWeekdays[firstDt.getDay()];
+                const aDateStr = `${firstDt.getDate()} ${ruMonths[firstDt.getMonth()]}`;
+                archiveDay.dayShort = aShort;
+                archiveDay.dateStr = aDateStr;
+                archiveDay.fullDateLabel = `${aShort}, ${aDateStr} ${firstDt.getFullYear()} (Архив)`;
+            }
+
+            const all11 = [archiveDay, ...mappedForecastDays];
+            const curTempC = +(curJson.temperature?.degrees ?? all11[1].maxC).toFixed(1);
+            const curFeelsC = +(curJson.feelsLikeTemperature?.degrees ?? curTempC - 2.5).toFixed(1);
+            const curWindRaw = curJson.wind?.speed?.value ?? 12;
+            const curGustRaw = curJson.wind?.gust?.value ?? (curWindRaw * 1.65);
+            const curWindMs = +(curWindRaw / 3.6).toFixed(1);
+            const curGustMs = +(curGustRaw / 3.6).toFixed(1);
+            const curDeg = Math.round(curJson.wind?.direction?.degrees ?? 270);
+            const curComp = degToCompass(curDeg);
+            const curPressHpa = Math.round(curJson.airPressure?.meanSeaLevelMillibars ?? 998);
+            const curMeta = googleCondToMeta(curJson.weatherCondition, curJson.precipitation, curTempC, false);
+
+            const nowStr = new Date().toLocaleString('ru-RU', {
+                timeZone: ABAN_COORDS.tz, day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+            });
+
+            return {
+                sourceType: 'live_google_wn3',
+                sourceLabel: soilFallbackPayload
+                    ? `Гибрид WN3 (${gDays.length} дн.) + Почва`
+                    : `WeatherNext 3 API (${gDays.length} дн. Live)`,
+                syncedAt: `${nowStr} (UTC+7)`,
+                latencyMs,
+                current: {
+                    ...referenceWn3Dataset.current,
+                    tempC: curTempC, tempF: cToF(curTempC), feelsC: curFeelsC, feelsF: cToF(curFeelsC),
+                    condRu: curJson.weatherCondition?.description?.text || referenceWn3Dataset.current.condRu,
+                    iconType: curMeta.icon,
+                    windMs: curWindMs, windMph: msToMph(curWindMs), gustMs: curGustMs, gustMph: msToMph(curGustMs),
+                    windDeg: curDeg, windDirShort: curComp.s,
+                    precipProb: Math.round(curJson.precipitation?.probability?.percent ?? all11[1].precipDay),
+                    precipMm: +(curJson.precipitation?.qpf?.quantity ?? all11[1].precipMm).toFixed(1),
+                    precipPhase: curMeta.phase === 'снег' ? 'Снег' : 'Дождь',
+                    humidity: Math.round(curJson.relativeHumidity ?? all11[1].humidity),
+                    pressureHpa: curPressHpa, pressureMm: hpaToMmHg(curPressHpa),
+                    soilTempC: all11[1].soilTempC,
+                    uv: Math.round(curJson.uvIndex ?? all11[1].uv),
+                    obsTimeLabel: `WeatherNext 3 Live • ${nowStr}`
+                },
+                hourly10: soilFallbackPayload ? soilFallbackPayload.hourly10 : referenceWn3Dataset.hourly10,
+                days: all11
+            };
+        }
+
+        async function refreshWeatherData(manualTrigger = false) {
+            if (state.isLoading) return;
+            state.isLoading = true;
+            const spinner = document.getElementById('refreshSpinnerIcon');
+            if (spinner) spinner.classList.add('animate-spin-fast');
+
+            try {
+                const mode = state.sourceMode;
+                const hasKey = Boolean(state.apiKey && state.apiKey.trim().length > 10);
+
+                if (mode === 'offline_cache') {
+                    const cached = loadFromLocalCache();
+                    if (cached) {
+                        applyDataset(cached, 'cache');
+                        if (manualTrigger) showToast('Загружен сохраненный 10-дневный прогноз из памяти телефона');
+                    } else {
+                        applyDataset(referenceWn3Dataset, 'reference');
+                        if (manualTrigger) showToast('Кэш пуст — активен эталонный профиль WeatherNext 3');
+                    }
+                } else if (mode === 'open_meteo') {
+                    const liveOm = await fetchOpenMeteoLive();
+                    savePayloadToLocalCache(liveOm);
+                    applyDataset(liveOm, 'online');
+                    if (manualTrigger) showToast(`Open-Meteo: 10-дневный прогноз обновлен (${liveOm.latencyMs} мс)`);
+                } else if (mode === 'google_wn3') {
+                    if (hasKey) {
+                        const liveWn3 = await fetchGoogleWeatherNext3Live(state.apiKey.trim(), null);
+                        savePayloadToLocalCache(liveWn3);
+                        applyDataset(liveWn3, 'online');
+                        if (manualTrigger) showToast(`WeatherNext 3 API: загружено 10 дней (${liveWn3.latencyMs} мс)`);
+                    } else {
+                        applyDataset(referenceWn3Dataset, 'reference');
+                        if (manualTrigger) showToast('Ключ не задан — активен эталон WeatherNext 3 (10 дн.)');
+                    }
+                } else {
+                    let liveOm = null;
+                    try {
+                        liveOm = await fetchOpenMeteoLive();
+                    } catch (_) {
+                        liveOm = null;
+                    }
+
+                    if (hasKey) {
+                        try {
+                            const hybridData = await fetchGoogleWeatherNext3Live(state.apiKey.trim(), liveOm);
+                            savePayloadToLocalCache(hybridData);
+                            applyDataset(hybridData, 'online');
+                            if (manualTrigger) showToast(`Гибрид WN3 + Почва синхронизирован (${hybridData.latencyMs} мс)`);
+                        } catch (wn3Err) {
+                            if (liveOm) {
+                                savePayloadToLocalCache(liveOm);
+                                applyDataset(liveOm, 'online');
+                                showToast(`Ключ Google API (${wn3Err.message}) — включен резерв Open-Meteo`);
+                            } else {
+                                throw wn3Err;
+                            }
+                        }
+                    } else if (liveOm) {
+                        liveOm.sourceLabel = 'Гибрид: Open-Meteo Live (10 дн. + Почва)';
+                        savePayloadToLocalCache(liveOm);
+                        applyDataset(liveOm, 'online');
+                        if (manualTrigger) showToast(`Живой прогноз и почва загружены (${liveOm.latencyMs} мс)`);
+                    } else {
+                        throw new Error('Нет связи с метеосервером');
+                    }
+                }
+            } catch (err) {
+                const cached = loadFromLocalCache();
+                if (cached) {
+                    applyDataset(cached, 'cache');
+                    showToast(`Офлайн-кэш: ${err.message || 'нет сети'}`);
+                } else {
+                    applyDataset(referenceWn3Dataset, 'reference');
+                    showToast(`Автономный эталон WN3 (${err.message || 'офлайн'})`);
+                }
+            } finally {
+                state.isLoading = false;
+                if (spinner) spinner.classList.remove('animate-spin-fast');
+            }
+        }
+
+        function applyDataset(dataset, statusKind) {
+            activeDataset = JSON.parse(JSON.stringify(dataset));
+            allDaysData = activeDataset.days;
+
+            const pill = document.getElementById('liveStatusPill');
+            const dot = document.getElementById('liveStatusDot');
+            const txt = document.getElementById('liveStatusText');
+            const srcBadge = document.getElementById('activeSourceBadge');
+            const syncTxt = document.getElementById('syncTimestampText');
+
+            if (statusKind === 'online') {
+                pill.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/35 flex-shrink-0';
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping';
+                txt.textContent = 'LIVE API';
+            } else if (statusKind === 'cache') {
+                pill.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/35 flex-shrink-0';
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-400';
+                txt.textContent = 'КЭШ';
+            } else {
+                pill.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-sky-500/15 text-sky-300 border border-sky-500/35 flex-shrink-0';
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-sky-400';
+                txt.textContent = 'ЭТАЛОН WN3';
+            }
+
+            if (srcBadge) srcBadge.textContent = activeDataset.sourceLabel;
+            if (syncTxt) syncTxt.textContent = `Синхр.: ${activeDataset.syncedAt}`;
+
+            ['hybrid', 'google_wn3', 'open_meteo', 'offline_cache'].forEach(k => {
+                const btn = document.getElementById(`srcBtn-${k}`);
+                if (!btn) return;
+                if (k === state.sourceMode) btn.classList.add('source-btn-active');
+                else btn.classList.remove('source-btn-active');
+            });
+
+            const wn3Sub = document.getElementById('wn3ModeSubTag');
+            if (wn3Sub) wn3Sub.textContent = state.apiKey ? 'Ключ активен' : 'API / Эталон';
+
+            initDateSelectOptions();
+            ensureSelectedDayInPeriod();
+            updateAllViews();
+            updateCacheModalStatus();
+        }
+
+        function setDataSourceMode(mode) {
+            state.sourceMode = mode;
+            localStorage.setItem(STORAGE_KEYS.SOURCE_MODE, mode);
+            refreshWeatherData(true);
+        }
+
+        // ============================================================================
+        // CACHE & MODAL MANAGEMENT
+        // ============================================================================
+        function savePayloadToLocalCache(payload) {
+            try {
+                const record = {
+                    savedAt: new Date().toLocaleString('ru-RU', { timeZone: ABAN_COORDS.tz }),
+                    payload
+                };
+                localStorage.setItem(STORAGE_KEYS.CACHE_PAYLOAD, JSON.stringify(record));
+                updateCacheModalStatus();
+            } catch (_) {}
+        }
+
+        function loadFromLocalCache() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEYS.CACHE_PAYLOAD);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (parsed?.payload && Array.isArray(parsed.payload.days)) {
+                    parsed.payload.syncedAt = `${parsed.savedAt} (кэш)`;
+                    return parsed.payload;
+                }
+            } catch (_) {}
+            return null;
+        }
+
+        function saveCurrentToCache(notify = true) {
+            savePayloadToLocalCache(activeDataset);
+            if (notify) showToast('Прогноз сохранен в память телефона');
+        }
+
+        function clearWeatherCache() {
+            localStorage.removeItem(STORAGE_KEYS.CACHE_PAYLOAD);
+            updateCacheModalStatus();
+            showToast('Офлайн-кэш очищен');
+        }
+
+        function exportCacheJson() {
+            const dataStr = JSON.stringify(activeDataset, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `aban_weather_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('JSON-слепок выгружен');
+        }
+
+        function importCacheJson(event) {
+            const file = event.target?.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    const payload = parsed.payload && Array.isArray(parsed.payload.days) ? parsed.payload : parsed;
+                    if (!Array.isArray(payload.days) || !payload.days.length) {
+                        throw new Error('Неверный формат JSON');
+                    }
+                    savePayloadToLocalCache(payload);
+                    applyDataset(payload, 'cache');
+                    showToast('Импортирован JSON-слепок прогноза');
+                } catch (err) {
+                    showToast(`Ошибка импорта: ${err.message}`);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function updateCacheModalStatus() {
+            const raw = localStorage.getItem(STORAGE_KEYS.CACHE_PAYLOAD);
+            const sizeBadge = document.getElementById('modalCacheSizeBadge');
+            const metaInfo = document.getElementById('modalCacheMetaInfo');
+            const keyBadge = document.getElementById('modalKeyStatusBadge');
+
+            if (state.apiKey && state.apiKey.length > 10) {
+                keyBadge.textContent = 'Ключ активен (' + state.apiKey.slice(0, 6) + '...)';
+                keyBadge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+            } else {
+                keyBadge.textContent = 'Ключ не задан (работает Авто-резерв)';
+                keyBadge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+            }
+
+            if (raw) {
+                const kb = (new Blob([raw]).size / 1024).toFixed(1);
+                const parsed = JSON.parse(raw);
+                sizeBadge.textContent = `Кэш: ${kb} КБ`;
+                metaInfo.innerHTML = `Сохранено: <strong class="text-sky-300">${parsed.savedAt}</strong> • Источник: <strong class="text-white">${parsed.payload?.sourceLabel || 'Метеосрез'}</strong>`;
+            } else {
+                sizeBadge.textContent = 'Кэш: 0 КБ';
+                metaInfo.textContent = 'В памяти смартфона пока нет сохраненного среза.';
+            }
+
+            ['best_match', 'ecmwf_ifs025', 'gfs_seamless'].forEach(m => {
+                const btn = document.getElementById(`omModelBtn-${m}`);
+                if (!btn) return;
+                if (m === state.openMeteoModel) {
+                    btn.className = 'touch-target px-3 py-2 rounded-xl text-xs font-mono border text-left transition bg-sky-500/20 border-sky-400 text-white';
+                } else {
+                    btn.className = 'touch-target px-3 py-2 rounded-xl text-xs font-mono border text-left transition bg-slate-950 border-slate-800 text-slate-300';
+                }
+            });
+        }
+
+        function openSettingsModal() {
+            document.getElementById('googleApiKeyInput').value = state.apiKey || '';
+            updateCacheModalStatus();
+            const m = document.getElementById('settingsModal');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+
+        function closeSettingsModal() {
+            const m = document.getElementById('settingsModal');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        }
+
+        function saveGoogleApiKey() {
+            const val = document.getElementById('googleApiKeyInput').value.trim();
+            state.apiKey = val;
+            if (val) {
+                localStorage.setItem('aban_wn3_api_key', val);
+                localStorage.setItem(STORAGE_KEYS.LEGACY_API_KEY, val);
+                showToast('Ключ Google Weather API сохранен в памяти телефона');
+            } else {
+                localStorage.removeItem('aban_wn3_api_key');
+                localStorage.removeItem(STORAGE_KEYS.LEGACY_API_KEY);
+                showToast('Ключ удален — активен канал Open-Meteo + Эталон WN3');
+            }
+            updateCacheModalStatus();
+            refreshWeatherData(true);
+        }
+
+        async function testGoogleApiKey() {
+            const val = document.getElementById('googleApiKeyInput').value.trim();
+            const resEl = document.getElementById('apiKeyTestResult');
+            if (!val) {
+                resEl.textContent = '⚠️ Сначала вставьте ключ API (AIzaSy...)';
+                resEl.className = 'text-xs font-mono text-amber-300';
+                return;
+            }
+            resEl.textContent = '⏳ Запрос 10 суток к weather.googleapis.com/v1 (days=10&pageSize=10)...';
+            resEl.className = 'text-xs font-mono text-sky-300';
+            try {
+                const q = `key=${encodeURIComponent(val)}&location.latitude=${ABAN_COORDS.lat}&location.longitude=${ABAN_COORDS.lon}&languageCode=ru&unitsSystem=METRIC`;
+                const r = await fetch(`https://weather.googleapis.com/v1/forecast/days:lookup?${q}&days=10&pageSize=10`);
+                if (!r.ok) {
+                    let msg = `HTTP ${r.status}`;
+                    try {
+                        const j = await r.json();
+                        if (j?.error?.message) msg = j.error.message;
+                    } catch (_) {}
+                    throw new Error(msg);
+                }
+                const data = await r.json();
+                const count = (data.forecastDays || []).length;
+                resEl.textContent = `✅ Успешно! WeatherNext 3 вернул ${count} суток прогноза для п. Абан.`;
+                resEl.className = 'text-xs font-mono text-emerald-300';
+            } catch (e) {
+                resEl.textContent = `❌ Ошибка ключа: ${e.message}`;
+                resEl.className = 'text-xs font-mono text-rose-300';
+            }
+        }
+
+        function setOpenMeteoModel(modelKey) {
+            state.openMeteoModel = modelKey;
+            localStorage.setItem(STORAGE_KEYS.OM_MODEL, modelKey);
+            updateCacheModalStatus();
+            if (state.sourceMode === 'open_meteo' || state.sourceMode === 'hybrid') {
+                refreshWeatherData(true);
+            } else {
+                showToast(`Выбрана модель Open-Meteo: ${modelKey}`);
+            }
+        }
+
+        // ============================================================================
+        // HOURLY SERIES & WINDOW STATS
+        // ============================================================================
+        function getDayHourlySeries(day) {
+            const hours = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
+            const weights = [0.22, 0.12, 0.04, 0.0, 0.25, 0.58, 0.86, 1.0, 0.92, 0.68, 0.44, 0.30];
+            const winCfg = timeWindowsConfig[state.timeWindow];
+
+            return hours.map((h, i) => {
+                let c;
+                if (Array.isArray(day.hourlyTempsC) && day.hourlyTempsC.length === 24 && day.hourlyTempsC[h] !== undefined) {
+                    c = +Number(day.hourlyTempsC[h]).toFixed(1);
+                } else {
+                    const w = weights[i];
+                    c = +(day.minC + w * (day.maxC - day.minC)).toFixed(1);
+                }
+                const f = cToF(c);
+                const feelsC = +(c - 2.6).toFixed(1);
+                const w = weights[i];
+                const isDaytime = h >= 8 && h <= 18;
+                const windMs = +(day.windMs * (0.78 + 0.32 * w)).toFixed(1);
+                const windMph = Math.max(1, msToMph(windMs));
+                const precip = isDaytime ? day.precipDay : day.precipNight;
+                const active = winCfg.isHourActive(h);
+                return {
+                    hour: h,
+                    hourStr: `${String(h).padStart(2, '0')}:00`,
+                    c, f, feelsC, windMs, windMph, precip, active
+                };
+            });
+        }
+
+        function computeDayWindowStats(day) {
+            const series = getDayHourlySeries(day);
+            const activePts = series.filter(p => p.active);
+            const avgC = +(activePts.reduce((acc, p) => acc + p.c, 0) / activePts.length).toFixed(1);
+            const avgF = cToF(avgC);
+            const avgWindMs = +(activePts.reduce((acc, p) => acc + p.windMs, 0) / activePts.length).toFixed(1);
+            const avgWindMph = msToMph(avgWindMs);
+            const maxPrecip = Math.max(...activePts.map(p => p.precip));
+            return { series, activePts, avgC, avgF, avgWindMs, avgWindMph, maxPrecip };
+        }
+
+        function getSelectedPeriodDays() {
+            return allDaysData.slice(state.startIdx, state.endIdx + 1);
+        }
+
+        // ============================================================================
+        // WEATHER SVG ICONS
+        // ============================================================================
+        function getWeatherSvg(type, sizeClass = 'w-10 h-10') {
+            switch (type) {
+                case 'sunny':
+                    return `<svg class="${sizeClass}" viewBox="0 0 64 64" fill="none">
+                        <circle cx="32" cy="32" r="13" fill="#fbbf24" stroke="#f59e0b" stroke-width="2"/>
+                        <g stroke="#fbbf24" stroke-width="3" stroke-linecap="round">
+                            <line x1="32" y1="8" x2="32" y2="13"/><line x1="32" y1="51" x2="32" y2="56"/>
+                            <line x1="8" y1="32" x2="13" y2="32"/><line x1="51" y1="32" x2="56" y2="32"/>
+                            <line x1="15" y1="15" x2="18.5" y2="18.5"/><line x1="45.5" y1="45.5" x2="49" y2="49"/>
+                            <line x1="49" y1="15" x2="45.5" y2="18.5"/><line x1="18.5" y1="45.5" x2="15" y2="49"/>
+                        </g>
+                    </svg>`;
+                case 'mostly-sunny':
+                case 'partly-sunny':
+                    return `<svg class="${sizeClass}" viewBox="0 0 64 64" fill="none">
+                        <circle cx="24" cy="24" r="10" fill="#fbbf24"/>
+                        <path d="M22 46H46C51.5 46 55 42 55 37C55 32.5 51.5 29 47 28.5C45.5 21.5 39 17 32 17C24.5 17 18.5 22.5 18 30C13.5 30.8 10 34.5 10 39C10 43 13.5 46 18 46H22Z" fill="#94a3b8" fill-opacity="0.9" stroke="#cbd5e1" stroke-width="1.5"/>
+                    </svg>`;
+                case 'snow':
+                case 'cloudy-snow':
+                    return `<svg class="${sizeClass}" viewBox="0 0 64 64" fill="none">
+                        <path d="M18 42H44C49.5 42 53 38 53 33C53 28.5 49.5 25 45 24.5C43.5 17.5 37 13 30 13C22.5 13 16.5 18.5 16 26C11.5 26.8 8 30.5 8 35C8 39 11.5 42 16 42H18Z" fill="#94a3b8" stroke="#cbd5e1" stroke-width="1.5"/>
+                        <circle cx="22" cy="50" r="2.8" fill="#38bdf8"/>
+                        <circle cx="32" cy="54" r="2.8" fill="#7dd3fc"/>
+                        <circle cx="42" cy="50" r="2.8" fill="#38bdf8"/>
+                    </svg>`;
+                case 'rain-cloudy':
+                    return `<svg class="${sizeClass}" viewBox="0 0 64 64" fill="none">
+                        <path d="M18 42H44C49.5 42 53 38 53 33C53 28.5 49.5 25 45 24.5C43.5 17.5 37 13 30 13C22.5 13 16.5 18.5 16 26C11.5 26.8 8 30.5 8 35C8 39 11.5 42 16 42H18Z" fill="#64748b" stroke="#94a3b8" stroke-width="1.5"/>
+                        <g stroke="#34d399" stroke-width="2.8" stroke-linecap="round">
+                            <line x1="22" y1="47" x2="19" y2="54"/>
+                            <line x1="32" y1="47" x2="29" y2="54"/>
+                            <line x1="42" y1="47" x2="39" y2="54"/>
+                        </g>
+                    </svg>`;
+                case 'clear-night':
+                    return `<svg class="${sizeClass}" viewBox="0 0 64 64" fill="none">
+                        <path d="M41 37C33.8 37 28 31.2 28 24C28 19.8 30 16 33 13.7C24.5 14.8 18 22 18 30.8C18 40.3 25.7 48 35.2 48C42.5 48 48.8 43.4 51.3 37C48.2 37 44.5 37 41 37Z" fill="#818cf8" stroke="#a5b4fc" stroke-width="1.5"/>
+                        <circle cx="46" cy="18" r="1.8" fill="#fde047"/>
+                    </svg>`;
+                default:
+                    return `<svg class="${sizeClass}" viewBox="0 0 64 64" fill="none">
+                        <path d="M20 46H45C50 46 53.5 42.5 53.5 38C53.5 34 50 30.5 46 30C44.5 23.5 38.5 19.5 32 19.5C25 19.5 19.5 24.5 19 31.5C14.5 32.2 11.5 35.5 11.5 39.5C11.5 43.2 15 46 20 46Z" fill="#64748b" stroke="#94a3b8" stroke-width="1.5"/>
+                    </svg>`;
+            }
+        }
+
+        // ============================================================================
+        // PERIOD & FILTER CONTROLS
+        // ============================================================================
+        function initDateSelectOptions() {
+            const startSel = document.getElementById('selectStartDate');
+            const endSel = document.getElementById('selectEndDate');
+            const optionsHtml = allDaysData.map(d => `<option value="${d.idx}">${d.fullDateLabel}</option>`).join('');
+            startSel.innerHTML = optionsHtml;
+            endSel.innerHTML = optionsHtml;
+        }
+
+        function findNearestWeekendRange() {
+            const weekendIndices = allDaysData.filter(d => !d.isArchive && (d.dayShort === 'Сб' || d.dayShort === 'Вс')).map(d => d.idx);
+            if (weekendIndices.length >= 2) return [weekendIndices[0], weekendIndices[1]];
+            if (weekendIndices.length === 1) return [weekendIndices[0], weekendIndices[0]];
+            return [7, 8];
+        }
+
+        function applyPeriodPreset(presetKey) {
+            state.activePreset = presetKey;
+            if (presetKey === '3d') { state.startIdx = 1; state.endIdx = 3; }
+            else if (presetKey === '5d') { state.startIdx = 1; state.endIdx = 5; }
+            else if (presetKey === '7d') { state.startIdx = 1; state.endIdx = 7; }
+            else if (presetKey === '10d') { state.startIdx = 1; state.endIdx = Math.min(10, allDaysData.length - 1); }
+            else if (presetKey === 'weekend') {
+                const [ws, we] = findNearestWeekendRange();
+                state.startIdx = ws; state.endIdx = we;
+            } else if (presetKey === 'all11') {
+                state.startIdx = 0; state.endIdx = allDaysData.length - 1;
+            }
+            ensureSelectedDayInPeriod();
+            updateAllViews();
+        }
+
+        function handleCustomDateChange(changedSide) {
+            let s = parseInt(document.getElementById('selectStartDate').value, 10);
+            let e = parseInt(document.getElementById('selectEndDate').value, 10);
+            const hint = document.getElementById('rangeProtectionHint');
+
+            if (s > e) {
+                if (changedSide === 'start') e = s;
+                else s = e;
+                hint.textContent = 'Скорректировано («С» ≤ «По»)';
+                hint.className = 'text-[11px] font-mono text-amber-300';
+            } else {
+                hint.textContent = 'Защита от инверсии';
+                hint.className = 'text-[11px] font-mono text-slate-400';
+            }
+
+            state.startIdx = s;
+            state.endIdx = e;
+            state.activePreset = 'custom';
+            ensureSelectedDayInPeriod();
+            updateAllViews();
+        }
+
+        function selectRangeFromTimeline(clickedIdx) {
+            if (clickedIdx < state.startIdx) state.startIdx = clickedIdx;
+            else if (clickedIdx > state.endIdx) state.endIdx = clickedIdx;
+            else state.selectedDayId = allDaysData[clickedIdx].id;
+            state.activePreset = 'custom';
+            ensureSelectedDayInPeriod();
+            updateAllViews();
+        }
+
+        function ensureSelectedDayInPeriod() {
+            const maxIdx = Math.max(0, allDaysData.length - 1);
+            if (isNaN(state.startIdx) || state.startIdx < 0) state.startIdx = Math.min(1, maxIdx);
+            if (isNaN(state.endIdx) || state.endIdx > maxIdx) state.endIdx = maxIdx;
+            if (state.startIdx > state.endIdx) state.startIdx = state.endIdx;
+
+            const periodDays = getSelectedPeriodDays();
+            if (periodDays.length && !periodDays.some(d => d.id === state.selectedDayId)) {
+                state.selectedDayId = periodDays[0].id;
+            }
+        }
+
+        function setTimeOfDayWindow(winKey) {
+            state.timeWindow = winKey;
+            ['full', 'day_shift', 'daylight', 'night'].forEach(k => {
+                const btn = document.getElementById(`windowBtn-${k}`);
+                if (!btn) return;
+                if (k === winKey) btn.classList.add('window-btn-active');
+                else btn.classList.remove('window-btn-active');
+            });
+            updateAllViews();
+        }
+
+        // ============================================================================
+        // RENDERING VIEWS & ENLARGED MOBILE CHARTS
+        // ============================================================================
+        function renderPeriodControlBar() {
+            const periodDays = getSelectedPeriodDays();
+            const firstDay = periodDays[0];
+            const lastDay = periodDays[periodDays.length - 1];
+            const count = periodDays.length;
+
+            document.getElementById('selectStartDate').value = String(state.startIdx);
+            document.getElementById('selectEndDate').value = String(state.endIdx);
+
+            const presetNames = {
+                '3d': '3 дн.', '5d': '5 дн.', '7d': '7 дн.',
+                '10d': '10 дн.', 'weekend': 'Выходные',
+                'all11': '11 дн.', 'custom': `${count} дн.`
+            };
+            const pLabel = presetNames[state.activePreset] || `${count} дн.`;
+            document.getElementById('activePresetBadge').textContent = pLabel;
+
+            ['3d', '5d', '7d', '10d', 'weekend', 'all11'].forEach(k => {
+                const btn = document.getElementById(`presetBtn-${k}`);
+                if (!btn) return;
+                if (k === state.activePreset) btn.classList.add('preset-btn-active');
+                else btn.classList.remove('preset-btn-active');
+            });
+
+            const trackEl = document.getElementById('miniTimelineTrack');
+            trackEl.innerHTML = allDaysData.map(d => {
+                const inRange = d.idx >= state.startIdx && d.idx <= state.endIdx;
+                const isEdge = d.idx === state.startIdx || d.idx === state.endIdx;
+                return `
+                <button onclick="selectRangeFromTimeline(${d.idx})" class="py-1.5 px-0.5 rounded-lg text-center font-mono text-[10px] transition border ${
+                    isEdge ? 'bg-sky-500 text-slate-950 font-bold border-sky-300'
+                    : inRange ? 'bg-sky-500/20 text-sky-200 border-sky-500/40'
+                    : 'bg-slate-950/70 text-slate-500 border-slate-800'
+                }">
+                    <div>${d.dateStr.split(' ')[0]}</div>
+                    <div class="text-[8px] opacity-75">${d.dayShort}</div>
+                </button>`;
+            }).join('');
+
+            const winCfg = timeWindowsConfig[state.timeWindow];
+            document.getElementById('activeTimeWindowBadge').textContent = winCfg.label;
+            const sampleStats = computeDayWindowStats(firstDay);
+            document.getElementById('windowHoursCount').textContent = `${sampleStats.activePts.length}/12 срезов`;
+
+            let maxDayObj = periodDays[0], minDayObj = periodDays[0], maxWindObj = periodDays[0];
+            let sumMaxC = 0, sumMinC = 0, sumMaxF = 0, sumMinF = 0, sumWinC = 0, sumWinF = 0;
+            let maxPrecipVal = 0, sumPrecipMm = 0, dryDaysCount = 0;
+
+            periodDays.forEach(d => {
+                if (d.maxC > maxDayObj.maxC) maxDayObj = d;
+                if (d.minC < minDayObj.minC) minDayObj = d;
+                if (d.windMs > maxWindObj.windMs) maxWindObj = d;
+                sumMaxC += d.maxC; sumMinC += d.minC;
+                sumMaxF += d.maxF; sumMinF += d.minF;
+                const winStats = computeDayWindowStats(d);
+                sumWinC += winStats.avgC; sumWinF += winStats.avgF;
+                const dayP = Math.max(d.precipDay, d.precipNight);
+                if (dayP > maxPrecipVal) maxPrecipVal = dayP;
+                sumPrecipMm += (d.precipMm || 0);
+                if (d.precipDay < 15 && d.precipNight < 15) dryDaysCount++;
+            });
+
+            const avgMaxC = +(sumMaxC / count).toFixed(1);
+            const avgMinC = +(sumMinC / count).toFixed(1);
+            const avgMaxF = Math.round(sumMaxF / count);
+            const avgMinF = Math.round(sumMinF / count);
+            const avgWinC = +(sumWinC / count).toFixed(1);
+            const avgWinF = Math.round(sumWinF / count);
+
+            // Update Collapsible Drawer Summary Chips
+            const srcShortMap = { hybrid: '⚡ Гибрид', google_wn3: '🛰️ WN3', open_meteo: '🌍 Open-Meteo', offline_cache: '💾 Кэш' };
+            document.getElementById('drawerChipSource').textContent = srcShortMap[state.sourceMode] || '⚡ Гибрид';
+            document.getElementById('drawerChipPeriod').textContent = `${firstDay.dateStr}–${lastDay.dateStr} (${count} дн.)`;
+            document.getElementById('drawerChipWindow').textContent = winCfg.shortLabel;
+            document.getElementById('drawerChipExtremes').textContent = `${formatTemp(minDayObj.minC, minDayObj.minF)} ... ${formatTemp(maxDayObj.maxC, maxDayObj.maxF)}`;
+
+            document.getElementById('stripSectionTitle').textContent = `Прогноз (${firstDay.dateStr} – ${lastDay.dateStr})`;
+            document.getElementById('analyticsPeriodBadge').textContent = `${firstDay.dateStr} – ${lastDay.dateStr} (${count} сут. • ${winCfg.shortLabel})`;
+
+            document.getElementById('periodSumDaysCount').textContent = `${count} ${count === 1 ? 'сутки' : 'суток'}`;
+            document.getElementById('periodSumDateSpan').textContent = `${firstDay.dayShort}, ${firstDay.dateStr} – ${lastDay.dayShort}, ${lastDay.dateStr}`;
+            document.getElementById('periodSumAbsMax').textContent = formatTemp(maxDayObj.maxC, maxDayObj.maxF);
+            document.getElementById('periodSumAbsMin').textContent = formatTemp(minDayObj.minC, minDayObj.minF);
+            document.getElementById('periodSumAbsDates').textContent = `Max: ${maxDayObj.dateStr} • Min: ${minDayObj.dateStr}`;
+            document.getElementById('periodSumAvgDay').textContent = formatTemp(avgMaxC, avgMaxF);
+            document.getElementById('periodSumAvgNight').textContent = formatTemp(avgMinC, avgMinF);
+            document.getElementById('periodSumWindowAvg').textContent = `В окне (${winCfg.shortLabel}): ${formatTemp(avgWinC, avgWinF)}`;
+            document.getElementById('periodSumMaxPrecip').textContent = `Пик ${maxPrecipVal}%`;
+            document.getElementById('periodSumAvgPrecip').textContent = `(Σ ${sumPrecipMm.toFixed(1)} мм)`;
+            document.getElementById('periodSumDryDays').textContent = `Сухих дней: ${dryDaysCount} из ${count}`;
+            document.getElementById('periodSumMaxWind').textContent = `${formatWind(maxWindObj.windMs, maxWindObj.windMph)} (пор. ${maxWindObj.gustMs.toFixed(1)})`;
+            document.getElementById('periodSumWindMeta').textContent = `Пик: ${maxWindObj.dayShort}, ${maxWindObj.dateStr} (${maxWindObj.windDirShort})`;
+        }
+
+        function renderCurrentConditions() {
+            const cur = activeDataset.current;
+            const h10 = activeDataset.hourly10;
+            const today = allDaysData[1] || allDaysData[0];
+
+            document.getElementById('currentObsTimeBadge').textContent = cur.obsTimeLabel;
+            document.getElementById('currentWeatherIcon').innerHTML = getWeatherSvg(cur.iconType || 'sunny', 'w-14 h-14');
+            document.getElementById('hourly10Icon').innerHTML = getWeatherSvg(h10.iconType || 'sunny', 'w-9 h-9');
+
+            document.getElementById('currentTempDisplay').textContent = formatTemp(cur.tempC, cur.tempF);
+            document.getElementById('currentTempSecondary').textContent = state.unit === 'dual' ? '' : `(${formatTempSecondary(cur.tempC, cur.tempF)})`;
+            document.getElementById('currentCondText').textContent = cur.condRu;
+            document.getElementById('currentFeelsDisplay').textContent = formatTemp(cur.feelsC, cur.feelsF, true);
+
+            document.getElementById('currentWindDirTag').textContent = `${cur.windDeg}° ${cur.windDirShort}`;
+            document.getElementById('currentWindDisplay').textContent = formatWind(cur.windMs, cur.windMph);
+            document.getElementById('currentGustSub').textContent = `Порывы ${state.unit === 'imperial' ? cur.gustMph + ' mph' : cur.gustMs.toFixed(1) + ' м/с'}`;
+
+            document.getElementById('currentPrecipPhaseTag').textContent = cur.precipPhase;
+            document.getElementById('currentPrecipProbDisplay').textContent = `${cur.precipProb}% • ${cur.precipMm} мм`;
+
+            document.getElementById('currentSoilTempMini').textContent = `Почва: ${formatTemp(cur.soilTempC, cToF(cur.soilTempC))}`;
+            document.getElementById('currentHumidityDisplay').textContent = `${cur.humidity}%`;
+            document.getElementById('currentHumidityBar').style.width = `${cur.humidity}%`;
+
+            document.getElementById('currentUvTag').textContent = `УФ: ${cur.uv}`;
+            document.getElementById('currentPressureDisplay').textContent = `${cur.pressureMm} мм`;
+            document.getElementById('currentPressureHpaSub').textContent = `${cur.pressureHpa} гПа`;
+
+            document.getElementById('hourly10Badge').textContent = h10.badgeRu;
+            document.getElementById('hourly10Temp').textContent = formatTemp(h10.tempC, h10.tempF);
+            document.getElementById('hourly10Feels').textContent = `Ощущ. ${formatTemp(h10.feelsC, h10.feelsF)}`;
+            document.getElementById('hourly10CondDesc').textContent = h10.condRu;
+            document.getElementById('hourly10Precip').textContent = `${h10.precipProb}%`;
+            document.getElementById('hourly10Wind').textContent = `${formatWind(h10.windMs, h10.windMph)} ${h10.windDirShort}`;
+            document.getElementById('hourly10Soil').textContent = formatTemp(h10.soilTempC, cToF(h10.soilTempC));
+
+            document.getElementById('todayExtremesLabel').textContent = `Сегодня (${today.dateStr}):`;
+            document.getElementById('todayMinBadge').textContent = formatTemp(today.minC, today.minF);
+            document.getElementById('todayMaxBadge').textContent = formatTemp(today.maxC, today.maxF);
+        }
+
+        function matchesFilter(day) {
+            if (state.filter === 'all') return true;
+            if (state.filter === 'frost') return day.minC < 0;
+            if (state.filter === 'precip') return day.precipDay >= 15 || day.precipNight >= 15;
+            if (state.filter === 'clear') return day.precipDay < 15 && day.precipNight < 15;
+            return true;
+        }
+
+        function renderForecastStrip() {
+            const container = document.getElementById('forecastStripContainer');
+            const days = getSelectedPeriodDays();
+            const count = days.length;
+
+            const frostCount = days.filter(d => d.minC < 0).length;
+            const precipCount = days.filter(d => d.precipDay >= 15 || d.precipNight >= 15).length;
+            const clearCount = days.filter(d => d.precipDay < 15 && d.precipNight < 15).length;
+
+            document.getElementById('filterBtn-all').textContent = `Все дни (${count})`;
+            document.getElementById('filterLabel-frost').textContent = `Заморозки (${frostCount})`;
+            document.getElementById('filterLabel-precip').textContent = `Осадки ≥15% (${precipCount})`;
+            document.getElementById('filterLabel-clear').textContent = `Сухие окна (${clearCount})`;
+
+            container.innerHTML = days.map(day => {
+                const isSelected = day.id === state.selectedDayId;
+                const isMatch = matchesFilter(day);
+                const maxPrecip = Math.max(day.precipDay, day.precipNight);
+                const hasRain = day.precipDayType === 'дождь' || day.precipNightType === 'дождь';
+                const phaseBadgeClass = hasRain
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                    : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
+
+                return `
+                <button onclick="selectDay('${day.id}')" class="glass-card snap-start flex-shrink-0 w-[132px] sm:w-[144px] lg:w-auto rounded-2xl p-3 text-left flex flex-col justify-between relative focus:outline-none ${isSelected ? 'day-card-active' : ''} ${!isMatch ? 'day-card-dimmed' : ''}">
+                    ${day.isArchive ? `<span class="absolute top-2 right-2 px-1.5 py-0.2 rounded text-[9px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">Арх</span>` : ''}
+                    ${!day.isArchive && day.minC < 0 ? `<span class="w-2 h-2 rounded-full bg-cyan-400 absolute top-2.5 right-2.5" title="Ночной заморозок"></span>` : ''}
+                    <div>
+                        <div class="text-xs sm:text-sm font-extrabold ${isSelected ? 'text-sky-300' : 'text-white'}">${day.dayShort}, ${day.dateStr}</div>
+                        <div class="text-[11px] font-mono text-slate-400 truncate">${day.label}</div>
+                    </div>
+
+                    <div class="my-2.5 flex items-center justify-center">
+                        ${getWeatherSvg(state.timeWindow === 'night' ? day.nightIconType : day.iconType, 'w-12 h-12')}
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <div class="flex items-baseline justify-between font-mono">
+                            <span class="text-sm sm:text-base font-extrabold text-white">${state.unit === 'imperial' ? day.maxF + '°' : formatC(day.maxC)}</span>
+                            <span class="text-xs font-bold ${day.minC < 0 ? 'text-cyan-300' : 'text-slate-400'}">${state.unit === 'imperial' ? day.minF + '°' : formatC(day.minC)}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] font-mono pt-1 border-t border-slate-800/80">
+                            <span class="px-1.5 py-0.5 rounded border ${phaseBadgeClass}">${maxPrecip}% ${day.precipDayType}</span>
+                            <span class="text-slate-300 font-bold">${day.windDirShort}</span>
+                        </div>
+                    </div>
+                </button>`;
+            }).join('');
+        }
+
+        function renderDayInspector() {
+            const days = getSelectedPeriodDays();
+            let dayIndex = days.findIndex(d => d.id === state.selectedDayId);
+            if (dayIndex === -1) {
+                state.selectedDayId = days[0].id;
+                dayIndex = 0;
+            }
+            const day = days[dayIndex];
+
+            document.getElementById('inspectorDateBadge').textContent = `${day.dayShort}, ${day.dateStr} (${day.label})`;
+            document.getElementById('inspectorTitle').textContent = `${day.dayCond} днем • ${day.nightCond} ночью`;
+            document.getElementById('inspectorIndexCounter').textContent = `День ${dayIndex + 1} из ${days.length}`;
+
+            const badges = [];
+            if (day.minC < 0) {
+                badges.push(`<span class="px-2.5 py-0.5 rounded-lg text-xs font-mono bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">❄️ Заморозок (${formatTemp(day.minC, day.minF)})</span>`);
+            }
+            if (day.maxC > 0 && day.minC < 0) {
+                badges.push(`<span class="px-2.5 py-0.5 rounded-lg text-xs font-mono bg-amber-500/15 text-amber-300 border border-amber-500/30">⚠️ Переход 0°C</span>`);
+            }
+            document.getElementById('inspectorRiskBadges').innerHTML = badges.join('');
+
+            document.getElementById('inspectorDayIcon').innerHTML = getWeatherSvg(day.iconType, 'w-11 h-11');
+            document.getElementById('inspectorDayTemp').textContent = formatTemp(day.maxC, day.maxF);
+            document.getElementById('inspectorDayTempSub').textContent = formatTempSecondary(day.maxC, day.maxF);
+            document.getElementById('inspectorDayCond').textContent = day.dayCond;
+            document.getElementById('inspectorDayCondEn').textContent = day.dayCondEn;
+            document.getElementById('inspectorDayPrecip').textContent = `${day.precipDay}% • ${day.precipMm} мм (${day.precipDayType})`;
+
+            document.getElementById('inspectorNightIcon').innerHTML = getWeatherSvg(day.nightIconType, 'w-11 h-11');
+            document.getElementById('inspectorNightTemp').textContent = formatTemp(day.minC, day.minF);
+            document.getElementById('inspectorNightTempSub').textContent = formatTempSecondary(day.minC, day.minF);
+            document.getElementById('inspectorNightCond').textContent = day.nightCond;
+            document.getElementById('inspectorNightCondEn').textContent = day.nightCondEn;
+            document.getElementById('inspectorNightPrecip').textContent = `${day.precipNight}% • ${day.precipNightType}`;
+
+            document.getElementById('inspectorSoilTemp').textContent = formatTemp(day.soilTempC, cToF(day.soilTempC));
+            document.getElementById('inspectorPressure').textContent = `${day.pressureMm} мм`;
+            const ampC = (day.maxC - day.minC).toFixed(1);
+            const ampF = day.maxF - day.minF;
+            document.getElementById('inspectorAmplitude').textContent = state.unit === 'imperial' ? `${ampF}°F` : `${ampC}°C`;
+
+            document.getElementById('inspectorWindDirCode').textContent = `${day.windDirShort} (${day.windDeg}°)`;
+            document.getElementById('compassArrowGroup').setAttribute('transform', `rotate(${day.windDeg}, 70, 70)`);
+            document.getElementById('inspectorWindSpeed').textContent = formatWind(day.windMs, day.windMph);
+            document.getElementById('inspectorWindGusts').textContent = `Порывы до: ${formatWind(day.gustMs, day.gustMph)}`;
+            document.getElementById('inspectorWindName').textContent = `${day.windDirFull} поток`;
+
+            const advEl = document.getElementById('inspectorAdvisoryText');
+            if (day.minC <= -4.5) {
+                advEl.textContent = `Выхолаживание до ${formatTemp(day.minC, day.minF)}, почва ${formatTemp(day.soilTempC, cToF(day.soilTempC))}. Контроль зимнего ДТ и водоводов.`;
+            } else if (day.maxC > 0 && day.minC < 0) {
+                advEl.textContent = `Суточный переход через 0°C (${formatTemp(day.minC, day.minF)} ... ${formatTemp(day.maxC, day.maxF)}): риск утренней гололедицы на Р-255 — Абан.`;
+            } else {
+                advEl.textContent = `Безморозные сутки (Min ${formatTemp(day.minC, day.minF)}), почва прогрета до ${formatTemp(day.soilTempC, cToF(day.soilTempC))}.`;
+            }
+
+            renderDiurnalCurve(day);
+        }
+
+        function selectHourPoint(hourVal) {
+            state.selectedHourSlot = hourVal;
+            const days = getSelectedPeriodDays();
+            const day = days.find(d => d.id === state.selectedDayId) || days[0];
+            renderDiurnalCurve(day);
+        }
+
+        // ENLARGED, HIGH-LEGIBILITY 24-HOUR SVG CHART FOR MOBILE
+        function renderDiurnalCurve(day) {
+            const winCfg = timeWindowsConfig[state.timeWindow];
+            const winStats = computeDayWindowStats(day);
+            const pts = winStats.series;
+            const selPt = pts.find(p => p.hour === state.selectedHourSlot) || pts[7];
+
+            document.getElementById('inspectorWindowLabel').textContent = `Окно: ${winCfg.shortLabel}`;
+            document.getElementById('selectedHourTitle').textContent = `Часовой репер (${selPt.hourStr}):`;
+            document.getElementById('selectedHourTemp').textContent = `${formatTemp(selPt.c, selPt.f)} (Ощущ. ${formatTemp(selPt.feelsC, cToF(selPt.feelsC))})`;
+            document.getElementById('diurnalWindowAvgTemp').textContent = formatTemp(winStats.avgC, winStats.avgF);
+            document.getElementById('diurnalWindowAvgWind').textContent = `${formatWind(selPt.windMs, selPt.windMph)} (${day.windDirShort})`;
+            document.getElementById('diurnalWindowPrecip').textContent = `${selPt.precip}% (${selPt.hour >= 8 && selPt.hour <= 18 ? day.precipDayType : day.precipNightType})`;
+
+            const w = 720, h = 230, padX = 42, padY = 42;
+            const isImp = state.unit === 'imperial';
+            const minVal = (isImp ? Math.min(...pts.map(p => p.f)) : Math.min(...pts.map(p => p.c))) - 2.2;
+            const maxVal = (isImp ? Math.max(...pts.map(p => p.f)) : Math.max(...pts.map(p => p.c))) + 2.2;
+
+            const getX = i => padX + (i * (w - padX * 2)) / (pts.length - 1);
+            const getY = val => h - padY - ((val - minVal) / (maxVal - minVal || 1)) * (h - padY * 2);
+
+            const coords = pts.map((p, i) => ({
+                x: getX(i),
+                y: getY(isImp ? p.f : p.c),
+                valStr: isImp ? `${p.f}°F` : `${p.c > 0 ? '+' : ''}${p.c}°`,
+                hour: p.hour,
+                hourStr: p.hourStr,
+                precip: p.precip,
+                active: p.active
+            }));
+
+            const pathD = coords.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`).join(' ');
+            const areaD = `${pathD} L ${coords[coords.length - 1].x.toFixed(1)} ${h - padY} L ${coords[0].x.toFixed(1)} ${h - padY} Z`;
+
+            const zeroThreshold = isImp ? 32 : 0;
+            const zeroY = getY(zeroThreshold);
+            const showZero = zeroY >= padY - 10 && zeroY <= h - padY + 10;
+            const stepW = (w - padX * 2) / (pts.length - 1);
+
+            document.getElementById('diurnalChartContainer').innerHTML = `
+                <svg viewBox="0 0 ${w} ${h}" class="diurnal-svg-mobile">
+                    <defs>
+                        <linearGradient id="diurnalGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/>
+                            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.02"/>
+                        </linearGradient>
+                    </defs>
+                    ${coords.map(pt => pt.active && state.timeWindow !== 'full' ? `
+                        <rect x="${pt.x - stepW / 2}" y="${padY - 22}" width="${stepW}" height="${h - padY * 2 + 28}" fill="rgba(56,189,248,0.12)" />
+                    ` : '').join('')}
+                    ${showZero ? `
+                        <line x1="${padX - 10}" y1="${zeroY}" x2="${w - padX + 10}" y2="${zeroY}" stroke="#fb7185" stroke-dasharray="5 4" stroke-width="1.8"/>
+                        <text x="${padX - 14}" y="${zeroY + 4}" text-anchor="end" fill="#fb7185" font-size="12" font-family="JetBrains Mono" font-weight="700">${isImp ? '32°' : '0°'}</text>
+                    ` : ''}
+                    <path d="${areaD}" fill="url(#diurnalGrad)"/>
+                    <path d="${pathD}" fill="none" stroke="#38bdf8" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    ${coords.map(pt => {
+                        const isPicked = pt.hour === selPt.hour;
+                        return `
+                        <g class="cursor-pointer" onclick="selectHourPoint(${pt.hour})" opacity="${pt.active ? '1' : '0.32'}">
+                            ${isPicked ? `<line x1="${pt.x}" y1="${padY - 18}" x2="${pt.x}" y2="${h - padY + 4}" stroke="#fbbf24" stroke-width="1.8" stroke-dasharray="3 3"/>` : ''}
+                            <!-- Invisible 18px radius touch target for finger tap -->
+                            <circle cx="${pt.x}" cy="${pt.y}" r="18" fill="transparent"/>
+                            <circle cx="${pt.x}" cy="${pt.y}" r="${isPicked ? 7.5 : 5.5}" fill="${isPicked ? '#fbbf24' : '#0f172a'}" stroke="${isPicked ? '#0f172a' : '#38bdf8'}" stroke-width="2.5"/>
+                            <text x="${pt.x}" y="${pt.y - 12}" text-anchor="middle" fill="${isPicked ? '#fde047' : '#f8fafc'}" font-size="13.5" font-family="JetBrains Mono" font-weight="700">${pt.valStr}</text>
+                            <text x="${pt.x}" y="${h - 10}" text-anchor="middle" fill="${isPicked ? '#fbbf24' : '#cbd5e1'}" font-size="12.5" font-family="JetBrains Mono" font-weight="700">${pt.hourStr}</text>
+                        </g>`;
+                    }).join('')}
+                </svg>
+            `;
+        }
+
+        function getXCoordinate(index, count, w, padL, padR) {
+            if (count <= 1) return w / 2;
+            return padL + (index * (w - padL - padR)) / (count - 1);
+        }
+
+        function renderAllCharts() {
+            renderTemperatureChart();
+            renderPrecipChart();
+            renderWindChart();
+            renderSoilAndOpsTab();
+        }
+
+        // TAB 1: ENLARGED TEMPERATURE PROFILE CHART
+        function renderTemperatureChart() {
+            const days = getSelectedPeriodDays();
+            const count = days.length;
+            const w = Math.max(740, count * 82), h = 280, padL = 56, padR = 44, padT = 38, padB = 48;
+            const isImp = state.unit === 'imperial';
+
+            const allVals = days.flatMap(d => isImp ? [d.maxF, d.minF] : [d.maxC, d.minC]);
+            const minVal = Math.min(...allVals, isImp ? 20 : -6) - (isImp ? 4 : 2.5);
+            const maxVal = Math.max(...allVals, isImp ? 45 : 7) + (isImp ? 4 : 2.5);
+            const zeroVal = isImp ? 32 : 0;
+
+            const getY = v => h - padB - ((v - minVal) / (maxVal - minVal || 1)) * (h - padT - padB);
+
+            const maxPts = days.map((d, i) => ({ x: getXCoordinate(i, count, w, padL, padR), y: getY(isImp ? d.maxF : d.maxC), d }));
+            const minPts = days.map((d, i) => ({ x: getXCoordinate(i, count, w, padL, padR), y: getY(isImp ? d.minF : d.minC), d }));
+
+            let maxDay = days[0], minDay = days[0];
+            days.forEach(d => {
+                if (d.maxC > maxDay.maxC) maxDay = d;
+                if (d.minC < minDay.minC) minDay = d;
+            });
+            document.getElementById('tempChartDynamicSummary').textContent =
+                `Max: ${maxDay.dateStr} (${formatTemp(maxDay.maxC, maxDay.maxF)}) • Min: ${minDay.dateStr} (${formatTemp(minDay.minC, minDay.minF)})`;
+
+            const maxPath = maxPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+            const minPath = minPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+            const bandPath = count > 1
+                ? `${maxPath} ${[...minPts].reverse().map(p => `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')} Z`
+                : '';
+
+            const zeroY = getY(zeroVal);
+
+            document.getElementById('tempChartWrapper').innerHTML = `
+                <svg viewBox="0 0 ${w} ${h}" class="chart-svg-mobile" style="min-width:${w}px">
+                    <defs>
+                        <linearGradient id="tempBandGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.28"/>
+                            <stop offset="60%" stop-color="#38bdf8" stop-opacity="0.16"/>
+                            <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.28"/>
+                        </linearGradient>
+                    </defs>
+                    <line x1="${padL - 10}" y1="${zeroY}" x2="${w - padR + 10}" y2="${zeroY}" stroke="#fb7185" stroke-width="2" stroke-dasharray="5 4"/>
+                    <text x="${padL - 14}" y="${zeroY + 4}" text-anchor="end" fill="#fb7185" font-size="13" font-family="JetBrains Mono" font-weight="700">${isImp ? '32°F' : '0°C'}</text>
+
+                    ${count > 1 ? `
+                        <path d="${bandPath}" fill="url(#tempBandGrad)"/>
+                        <path d="${maxPath}" fill="none" stroke="#fbbf24" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="${minPath}" fill="none" stroke="#22d3ee" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    ` : ''}
+
+                    ${days.map((d, i) => {
+                        const x = maxPts[i].x;
+                        const yMax = maxPts[i].y;
+                        const yMin = minPts[i].y;
+                        const isSel = d.id === state.selectedDayId;
+                        const maxLabel = isImp ? `${d.maxF}°` : formatC(d.maxC);
+                        const minLabel = isImp ? `${d.minF}°` : formatC(d.minC);
+                        return `
+                        <g class="cursor-pointer" onclick="selectDay('${d.id}')">
+                            ${isSel ? `<rect x="${x - 34}" y="${padT - 22}" width="68" height="${h - padT - padB + 32}" rx="10" fill="rgba(56,189,248,0.13)" stroke="rgba(56,189,248,0.45)"/>` : ''}
+                            <line x1="${x}" y1="${yMax}" x2="${x}" y2="${yMin}" stroke="rgba(148,163,184,0.35)" stroke-width="2" stroke-dasharray="2 2"/>
+                            <!-- Touch target -->
+                            <circle cx="${x}" cy="${yMax}" r="18" fill="transparent"/>
+                            <circle cx="${x}" cy="${yMin}" r="18" fill="transparent"/>
+
+                            <circle cx="${x}" cy="${yMax}" r="${isSel ? 7 : 5.5}" fill="#0f172a" stroke="#fbbf24" stroke-width="2.8"/>
+                            <text x="${x}" y="${yMax - 12}" text-anchor="middle" fill="#fde68a" font-size="13.5" font-family="JetBrains Mono" font-weight="700">${maxLabel}</text>
+
+                            <circle cx="${x}" cy="${yMin}" r="${isSel ? 7 : 5.5}" fill="#0f172a" stroke="#22d3ee" stroke-width="2.8"/>
+                            <text x="${x}" y="${yMin + 20}" text-anchor="middle" fill="#a5f3fc" font-size="13.5" font-family="JetBrains Mono" font-weight="700">${minLabel}</text>
+
+                            <text x="${x}" y="${h - 14}" text-anchor="middle" fill="${isSel ? '#38bdf8' : '#f1f5f9'}" font-size="13" font-family="Inter" font-weight="700">${d.dayShort}, ${d.dateStr}</text>
+                        </g>`;
+                    }).join('')}
+                </svg>
+            `;
+        }
+
+        // TAB 2: ENLARGED PRECIPITATION & HUMIDITY CHART
+        function renderPrecipChart() {
+            const days = getSelectedPeriodDays();
+            const count = days.length;
+            const w = Math.max(740, count * 82), h = 280, padL = 58, padR = 46, padT = 34, padB = 50;
+            const getY = pct => h - padB - (pct / 100) * (h - padT - padB);
+
+            const humPts = days.map((d, i) => ({ x: getXCoordinate(i, count, w, padL, padR), y: getY(d.humidity), hum: d.humidity }));
+            const humPath = humPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+
+            const totalMm = days.reduce((acc, d) => acc + (d.precipMm || 0), 0).toFixed(1);
+            document.getElementById('precipChartDynamicSummary').textContent = `Сумма осадков: ${totalMm} мм`;
+
+            document.getElementById('precipChartWrapper').innerHTML = `
+                <svg viewBox="0 0 ${w} ${h}" class="chart-svg-mobile" style="min-width:${w}px">
+                    ${[25, 50, 75].map(pct => `
+                        <line x1="${padL - 12}" y1="${getY(pct)}" x2="${w - padR + 12}" y2="${getY(pct)}" stroke="rgba(148,163,184,0.14)" stroke-width="1"/>
+                        <text x="${padL - 16}" y="${getY(pct) + 4}" text-anchor="end" fill="#94a3b8" font-size="12" font-family="JetBrains Mono" font-weight="700">${pct}%</text>
+                    `).join('')}
+
+                    ${days.map((d, i) => {
+                        const x = humPts[i].x;
+                        const barW = 18;
+                        const yDay = getY(d.precipDay);
+                        const hDay = Math.max(4, (h - padB) - yDay);
+                        const yNight = getY(d.precipNight);
+                        const hNight = Math.max(4, (h - padB) - yNight);
+                        const dayColor = d.precipDayType === 'дождь' ? '#34d399' : '#38bdf8';
+                        const nightColor = d.precipNightType === 'дождь' ? '#10b981' : '#0284c7';
+
+                        return `
+                        <g class="cursor-pointer" onclick="selectDay('${d.id}')">
+                            <rect x="${x - barW - 2}" y="${yDay}" width="${barW}" height="${hDay}" rx="4" fill="${dayColor}" fill-opacity="0.88"/>
+                            <text x="${x - barW / 2 - 2}" y="${yDay - 6}" text-anchor="middle" fill="${dayColor}" font-size="12" font-family="JetBrains Mono" font-weight="700">${d.precipDay}%</text>
+
+                            <rect x="${x + 2}" y="${yNight}" width="${barW}" height="${hNight}" rx="4" fill="${nightColor}" fill-opacity="0.78"/>
+                            <text x="${x + barW / 2 + 2}" y="${yNight - 6}" text-anchor="middle" fill="#cbd5e1" font-size="11.5" font-family="JetBrains Mono" font-weight="700">${d.precipMm}м</text>
+
+                            <text x="${x}" y="${h - 22}" text-anchor="middle" fill="#f1f5f9" font-size="13" font-family="Inter" font-weight="700">${d.dayShort}, ${d.dateStr}</text>
+                            <text x="${x}" y="${h - 6}" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="JetBrains Mono">${d.precipDayType}</text>
+                        </g>`;
+                    }).join('')}
+
+                    ${count > 1 ? `<path d="${humPath}" fill="none" stroke="#818cf8" stroke-width="3" stroke-linecap="round"/>` : ''}
+                    ${humPts.map(p => `
+                        <circle cx="${p.x}" cy="${p.y}" r="5" fill="#0f172a" stroke="#818cf8" stroke-width="2.5"/>
+                        <text x="${p.x}" y="${p.y - 10}" text-anchor="middle" fill="#e0e7ff" font-size="12" font-family="JetBrains Mono" font-weight="700">${p.hum}%</text>
+                    `).join('')}
+                </svg>
+            `;
+        }
+
+        // TAB 3: ENLARGED WIND & GUSTS CHART
+        function renderWindChart() {
+            const days = getSelectedPeriodDays();
+            const count = days.length;
+            const w = Math.max(740, count * 82), h = 280, padL = 58, padR = 46, padT = 38, padB = 50;
+            const isImp = state.unit === 'imperial';
+            const maxWind = isImp ? 32 : 14.0;
+            const warnThreshold = isImp ? 22 : 10.0;
+
+            const getY = val => h - padB - (Math.min(maxWind, val) / maxWind) * (h - padT - padB);
+
+            const pts = days.map((d, i) => {
+                const val = isImp ? d.windMph : d.windMs;
+                const gVal = isImp ? d.gustMph : d.gustMs;
+                return { x: getXCoordinate(i, count, w, padL, padR), y: getY(val), yG: getY(gVal), val, gVal, d };
+            });
+
+            let peakW = days[0];
+            days.forEach(d => { if (d.gustMs > peakW.gustMs) peakW = d; });
+            document.getElementById('windChartDynamicSummary').textContent =
+                `Пик: ${peakW.dateStr} — ${formatWind(peakW.windMs, peakW.windMph)} (пор. ${formatWind(peakW.gustMs, peakW.gustMph)})`;
+
+            const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+            const gustPathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.yG.toFixed(1)}`).join(' ');
+            const warnY = getY(warnThreshold);
+
+            document.getElementById('windChartWrapper').innerHTML = `
+                <svg viewBox="0 0 ${w} ${h}" class="chart-svg-mobile" style="min-width:${w}px">
+                    <line x1="${padL - 10}" y1="${warnY}" x2="${w - padR + 10}" y2="${warnY}" stroke="#fb7185" stroke-width="1.8" stroke-dasharray="5 4"/>
+                    <text x="${padL - 14}" y="${warnY + 4}" text-anchor="end" fill="#fb7185" font-size="12" font-family="JetBrains Mono" font-weight="700">${isImp ? '22m' : '10м/с'}</text>
+
+                    ${count > 1 ? `
+                        <path d="${gustPathD}" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-dasharray="5 3" stroke-linecap="round"/>
+                        <path d="${pathD}" fill="none" stroke="#38bdf8" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    ` : ''}
+
+                    ${pts.map(p => {
+                        const label = isImp ? `${p.d.windMph}` : `${p.d.windMs.toFixed(1)}`;
+                        const gLabel = isImp ? `${p.d.gustMph}` : `${p.d.gustMs.toFixed(1)}`;
+                        return `
+                        <g class="cursor-pointer" onclick="selectDay('${p.d.id}')">
+                            <circle cx="${p.x}" cy="${p.y}" r="18" fill="transparent"/>
+                            <line x1="${p.x}" y1="${p.yG}" x2="${p.x}" y2="${p.y}" stroke="rgba(251,191,36,0.4)" stroke-width="2"/>
+                            <circle cx="${p.x}" cy="${p.yG}" r="5" fill="#0f172a" stroke="#fbbf24" stroke-width="2.5"/>
+                            <text x="${p.x}" y="${p.yG - 10}" text-anchor="middle" fill="#fde68a" font-size="12.5" font-family="JetBrains Mono" font-weight="700">${gLabel}</text>
+
+                            <circle cx="${p.x}" cy="${p.y}" r="6" fill="#0f172a" stroke="#38bdf8" stroke-width="2.8"/>
+                            <text x="${p.x}" y="${p.y + 19}" text-anchor="middle" fill="#f8fafc" font-size="13" font-family="JetBrains Mono" font-weight="700">${label}</text>
+
+                            <text x="${p.x}" y="${h - 22}" text-anchor="middle" fill="#f1f5f9" font-size="13" font-family="Inter" font-weight="700">${p.d.dayShort}, ${p.d.dateStr}</text>
+                            <text x="${p.x}" y="${h - 6}" text-anchor="middle" fill="#38bdf8" font-size="12" font-family="JetBrains Mono" font-weight="700">${p.d.windDirShort}</text>
+                        </g>`;
+                    }).join('')}
+                </svg>
+            `;
+        }
+
+        // TAB 4: ENLARGED SOIL TEMP & FIELD MATRIX
+        function renderSoilAndOpsTab() {
+            const days = getSelectedPeriodDays();
+            const count = days.length;
+            const winCfg = timeWindowsConfig[state.timeWindow];
+            const isImp = state.unit === 'imperial';
+
+            const w = Math.max(740, count * 82), h = 250, padL = 56, padR = 44, padT = 34, padB = 46;
+            const allSoilVals = days.flatMap(d => isImp ? [cToF(d.soilTempC), cToF(d.dewPointC)] : [d.soilTempC, d.dewPointC]);
+            const minV = Math.min(...allSoilVals, isImp ? 22 : -6) - 2;
+            const maxV = Math.max(...allSoilVals, isImp ? 42 : 5) + 2;
+            const zeroV = isImp ? 32 : 0;
+            const getY = v => h - padB - ((v - minV) / (maxV - minV || 1)) * (h - padT - padB);
+
+            const soilPts = days.map((d, i) => ({
+                x: getXCoordinate(i, count, w, padL, padR),
+                y: getY(isImp ? cToF(d.soilTempC) : d.soilTempC),
+                val: isImp ? `${cToF(d.soilTempC)}°` : formatC(d.soilTempC),
+                d
+            }));
+            const dewPts = days.map((d, i) => ({
+                x: getXCoordinate(i, count, w, padL, padR),
+                y: getY(isImp ? cToF(d.dewPointC) : d.dewPointC),
+                val: isImp ? `${cToF(d.dewPointC)}°` : formatC(d.dewPointC)
+            }));
+
+            const soilPath = soilPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+            const dewPath = dewPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+            const zeroY = getY(zeroV);
+
+            document.getElementById('soilChartWrapper').innerHTML = `
+                <svg viewBox="0 0 ${w} ${h}" class="chart-svg-mobile" style="min-width:${w}px; height:250px">
+                    <line x1="${padL - 10}" y1="${zeroY}" x2="${w - padR + 10}" y2="${zeroY}" stroke="#fb7185" stroke-width="1.8" stroke-dasharray="5 4"/>
+                    <text x="${padL - 14}" y="${zeroY + 4}" text-anchor="end" fill="#fb7185" font-size="12" font-family="JetBrains Mono" font-weight="700">${isImp ? '32°F' : '0°C'}</text>
+
+                    ${count > 1 ? `
+                        <path d="${dewPath}" fill="none" stroke="#34d399" stroke-width="2.4" stroke-dasharray="4 3"/>
+                        <path d="${soilPath}" fill="none" stroke="#fbbf24" stroke-width="3.2" stroke-linecap="round"/>
+                    ` : ''}
+
+                    ${soilPts.map((p, i) => `
+                        <g class="cursor-pointer" onclick="selectDay('${p.d.id}')">
+                            <circle cx="${p.x}" cy="${p.y}" r="18" fill="transparent"/>
+                            <circle cx="${p.x}" cy="${p.y}" r="5.5" fill="#0f172a" stroke="#fbbf24" stroke-width="2.6"/>
+                            <text x="${p.x}" y="${p.y - 10}" text-anchor="middle" fill="#fde68a" font-size="13" font-family="JetBrains Mono" font-weight="700">${p.val}</text>
+
+                            <circle cx="${dewPts[i].x}" cy="${dewPts[i].y}" r="4.5" fill="#0f172a" stroke="#34d399" stroke-width="2"/>
+                            <text x="${dewPts[i].x}" y="${dewPts[i].y + 18}" text-anchor="middle" fill="#6ee7b7" font-size="11.5" font-family="JetBrains Mono" font-weight="700">${dewPts[i].val}</text>
+
+                            <text x="${p.x}" y="${h - 12}" text-anchor="middle" fill="#f1f5f9" font-size="13" font-family="Inter" font-weight="700">${p.d.dayShort}, ${p.d.dateStr}</text>
+                        </g>
+                    `).join('')}
+                </svg>
+            `;
+
+            const frostDays = days.filter(d => d.minC < 0);
+            const soilFreezeDays = days.filter(d => d.soilTempC <= 0.2);
+            const dryDays = days.filter(d => d.precipDay < 15 && d.precipNight < 15);
+            const mixedPhaseDays = days.filter(d => d.precipDayType === 'дождь' || d.precipNightType === 'дождь');
+
+            document.getElementById('opsSummaryCardsGrid').innerHTML = `
+                <div class="p-3.5 rounded-xl bg-slate-900/85 border border-cyan-500/30">
+                    <div class="text-xs font-mono text-cyan-400 font-bold">❄️ ЗАМОРОЗКИ (${frostDays.length}/${days.length} СУТ.)</div>
+                    <div class="text-sm font-bold text-white mt-1">${frostDays.length ? frostDays.map(d => d.dateStr).slice(0, 4).join(', ') : 'Без заморозков'}</div>
+                </div>
+                <div class="p-3.5 rounded-xl bg-slate-900/85 border border-amber-500/30">
+                    <div class="text-xs font-mono text-amber-400 font-bold">🌱 ПОЧВА ≤0°C (${soilFreezeDays.length} СУТ.)</div>
+                    <div class="text-sm font-bold text-white mt-1">${soilFreezeDays.length ? soilFreezeDays.map(d => d.dateStr).slice(0, 4).join(', ') : 'Почва выше 0°C'}</div>
+                </div>
+                <div class="p-3.5 rounded-xl bg-slate-900/85 border border-emerald-500/30">
+                    <div class="text-xs font-mono text-emerald-400 font-bold">☀️ СУХИЕ ОКНА (${dryDays.length} СУТ.)</div>
+                    <div class="text-sm font-bold text-white mt-1">${dryDays.length ? dryDays.map(d => d.dateStr).slice(0, 4).join(', ') : 'Осадки ≥15%'}</div>
+                </div>
+                <div class="p-3.5 rounded-xl bg-slate-900/85 border border-indigo-500/30">
+                    <div class="text-xs font-mono text-indigo-400 font-bold">🌧️ ЖИДКАЯ ФАЗА (${mixedPhaseDays.length} СУТ.)</div>
+                    <div class="text-sm font-bold text-white mt-1">${mixedPhaseDays.length ? mixedPhaseDays.map(d => d.dateStr).slice(0, 4).join(', ') : 'Твердая фаза'}</div>
+                </div>
+            `;
+
+            document.getElementById('operationalTableBody').innerHTML = days.map(d => {
+                const winStats = computeDayWindowStats(d);
+                let statusBadge = `<span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Норма</span>`;
+                if (d.minC <= -3.5) statusBadge = `<span class="px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">Мороз</span>`;
+                else if (d.precipDay >= 25 || d.gustMs >= 10.0) statusBadge = `<span class="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">Осадки/Ветер</span>`;
+
+                return `
+                <tr onclick="selectDay('${d.id}')" class="hover:bg-slate-800/50 cursor-pointer transition ${d.id === state.selectedDayId ? 'bg-sky-950/35' : ''}">
+                    <td class="py-2.5 px-3 font-bold text-white">${d.dayShort}, ${d.dateStr}</td>
+                    <td class="py-2.5 px-3 text-slate-300 font-sans">${d.dayCond}</td>
+                    <td class="py-2.5 px-3"><span class="text-amber-300 font-bold">${formatTemp(d.maxC, d.maxF)}</span> / <span class="text-cyan-300">${formatTemp(d.minC, d.minF)}</span> <span class="text-sky-400">(${formatTemp(winStats.avgC, winStats.avgF)})</span></td>
+                    <td class="py-2.5 px-3 text-cyan-300">${d.precipMm} мм (${d.precipDay}%)</td>
+                    <td class="py-2.5 px-3 text-slate-200">${formatWind(d.windMs, d.windMph)} (пор. ${d.gustMs.toFixed(1)}) ${d.windDirShort}</td>
+                    <td class="py-2.5 px-3 text-amber-300">${formatTemp(d.soilTempC, cToF(d.soilTempC))} / ${d.pressureMm} мм</td>
+                    <td class="py-2.5 px-3">${statusBadge}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ============================================================================
+        // INTERACTION HANDLERS
+        // ============================================================================
+        function setUnitSystem(unit) {
+            state.unit = unit;
+            const pairs = [
+                ['metric', 'btnUnitMetric', 'modalUnitMetric'],
+                ['imperial', 'btnUnitImperial', 'modalUnitImperial'],
+                ['dual', 'btnUnitDual', 'modalUnitDual']
+            ];
+            pairs.forEach(([key, hId, mId]) => {
+                const hBtn = document.getElementById(hId);
+                const mBtn = document.getElementById(mId);
+                if (hBtn) {
+                    hBtn.className = key === unit
+                        ? 'px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition bg-sky-500 text-slate-950'
+                        : 'px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition text-slate-400 hover:text-white';
+                }
+                if (mBtn) {
+                    mBtn.className = key === unit
+                        ? 'touch-target px-3 py-2 rounded-xl text-xs font-mono font-bold transition bg-sky-500 text-slate-950'
+                        : 'touch-target px-3 py-2 rounded-xl text-xs font-mono font-semibold transition bg-slate-950 text-slate-300 border border-slate-800';
+                }
+            });
+            updateAllViews();
+        }
+
+        function selectDay(dayId) {
+            state.selectedDayId = dayId;
+            updateAllViews();
+        }
+
+        function navigateDay(delta) {
+            const days = getSelectedPeriodDays();
+            const idx = days.findIndex(d => d.id === state.selectedDayId);
+            const nextIdx = (idx + delta + days.length) % days.length;
+            state.selectedDayId = days[nextIdx].id;
+            updateAllViews();
+        }
+
+        function setDayFilter(filter) {
+            state.filter = filter;
+            ['all', 'frost', 'precip', 'clear'].forEach(f => {
+                const btn = document.getElementById(`filterBtn-${f}`);
+                if (!btn) return;
+                if (f === filter) {
+                    btn.className = 'touch-target flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-sky-500 text-slate-950 flex items-center gap-1.5';
+                } else {
+                    btn.className = 'touch-target flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition bg-slate-800/90 text-slate-200 border border-slate-700/80 flex items-center gap-1.5';
+                }
+            });
+            renderForecastStrip();
+        }
+
+        function switchAnalyticsTab(tab) {
+            state.activeTab = tab;
+            ['temp', 'precip', 'wind', 'ops'].forEach(t => {
+                const btn = document.getElementById(`tabBtn-${t}`);
+                const panel = document.getElementById(`tabContent-${t}`);
+                if (t === tab) {
+                    btn.className = 'touch-target flex-shrink-0 px-3.5 py-2 rounded-lg text-xs font-bold transition bg-sky-500 text-slate-950 shadow';
+                    panel.classList.remove('hidden');
+                } else {
+                    btn.className = 'touch-target flex-shrink-0 px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white';
+                    panel.classList.add('hidden');
+                }
+            });
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'px-4 py-2.5 rounded-xl bg-slate-900/95 border border-sky-500/50 text-sky-200 text-xs font-mono shadow-xl flex items-center gap-2 pointer-events-auto';
+            toast.innerHTML = `<span class="w-2 h-2 rounded-full bg-sky-400 flex-shrink-0"></span><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 3200);
+        }
+
+        function copyTelemetrySummary() {
+            const periodDays = getSelectedPeriodDays();
+            const firstDay = periodDays[0];
+            const lastDay = periodDays[periodDays.length - 1];
+            const winCfg = timeWindowsConfig[state.timeWindow];
+            const cur = activeDataset.current;
+
+            const summaryLines = [
+                `Метеосводка п. Абан (56.68°N, 96.07°E, UTC+7)`,
+                `Источник: ${activeDataset.sourceLabel} | Синхр.: ${activeDataset.syncedAt}`,
+                `Сейчас: ${formatC(cur.tempC)} (${cur.tempF}°F), ощущ. ${formatC(cur.feelsC)}, ${cur.condRu}, ветер ${cur.windMs} м/с (пор. ${cur.gustMs}) ${cur.windDirShort}, почва: ${formatC(cur.soilTempC)}, давл. ${cur.pressureMm} мм`,
+                `Период: ${firstDay.dateStr} – ${lastDay.dateStr} (${periodDays.length} сут.) | Окно: ${winCfg.label}`,
+                ...periodDays.map(d => {
+                    const wStats = computeDayWindowStats(d);
+                    return `- ${d.dayShort}, ${d.dateStr}: Max ${formatC(d.maxC)} / Min ${formatC(d.minC)} | Окно: ${formatC(wStats.avgC)} | Осадки: ${d.precipMm} мм (${d.precipDay}% ${d.precipDayType}) | Ветер: ${d.windMs} м/с ${d.windDirShort} | Почва: ${formatC(d.soilTempC)}`;
+                })
+            ];
+            const textarea = document.createElement('textarea');
+            textarea.value = summaryLines.join('\n');
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Сводка скопирована в буфер обмена');
+            } catch (_) {
+                showToast('Не удалось скопировать сводку');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function setupPwaManifest() {
+            const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="42" fill="#060911"/><circle cx="72" cy="76" r="28" fill="#fbbf24"/><path d="M58 136h78c16 0 28-12 28-27 0-14-11-25-24-26-4-20-22-34-43-34-22 0-40 16-42 38-13 2-23 13-23 26 0 13 11 23 26 23z" fill="#38bdf8"/></svg>`;
+            const iconUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(svgIcon);
+            const manifest = {
+                name: 'Табло погоды WeatherNext 3 — п. Абан',
+                short_name: 'Абан Метео',
+                description: 'Мобильное 10-дневное метеотабло п. Абан (WeatherNext 3 + Open-Meteo)',
+                start_url: './',
+                display: 'standalone',
+                background_color: '#060911',
+                theme_color: '#060911',
+                icons: [{ src: iconUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' }]
+            };
+            const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            document.getElementById('pwaManifestLink').setAttribute('href', URL.createObjectURL(blob));
+        }
+
+        function updateAllViews() {
+            renderCurrentConditions();
+            renderPeriodControlBar();
+            renderForecastStrip();
+            renderDayInspector();
+            renderAllCharts();
+        }
+
+        window.onload = function () {
+            setupPwaManifest();
+            initDateSelectOptions();
+            updateAllViews();
+            refreshWeatherData(false);
+        };
+    </script>
+</body>
+</html>
